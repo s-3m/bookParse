@@ -11,7 +11,7 @@ import pandas as pd
 import datetime
 import json
 import requests
-from republik.utils import get_selenium_page
+from utils import get_selenium_page
 
 BASE_URL = "https://www.respublica.ru"
 USER_AGENT = UserAgent()
@@ -25,7 +25,8 @@ item_counter = 1
 
 def get_item_data(item):
     global item_counter
-    print(item_counter)
+    print(f'--------------------Делаю {item_counter}')
+    item_counter += 1
     item_text_page = get_selenium_page(item)
 
     try:
@@ -78,10 +79,9 @@ def get_item_data(item):
         except:
             pass
             result.append(item_data)
-        item_counter += 1
     except Exception as e:
         with open('error.txt', 'a+') as file:
-            file.write(f'Что-то пошло не так с {item}\n{e}')
+            file.write(f'{item}\n{e}\n\n')
 
 
 async def get_thread(unique_items_links):
@@ -93,26 +93,32 @@ async def get_thread(unique_items_links):
 
 
 async def get_gather_data():
-    counter = 1
     async with aiohttp.ClientSession() as session:
-        response = await session.get(BASE_URL + '/knigi', headers=headers)
-        soup = bs(await response.text(), "lxml")
-        page_count = soup.find('ul', class_='pages').find_all('a')[-2].text.strip()
         tasks = []
-        for page in range(1, int(page_count) + 1):
+        cat_tree_response = requests.get('https://api.respublica.ru/api/v1/nav/categories_tree', headers=headers).text
+        cat_tree = json.loads(cat_tree_response)[0]['childs']
+        category_list = [i['cached_path'] for i in cat_tree]
+        for path in category_list:
+            print(f'Начал {path}')
+            response = await session.get(f'{BASE_URL}/{path}', headers=headers)
+            soup = bs(await response.text(), "lxml")
+            page_count = soup.find('ul', class_='pages').find_all('a')[-2].text.strip()
+            counter = 1
+            for page in range(1, int(page_count) + 1):
 
-            if page <= 2:
-                print(f'Делаю {counter} страницу')
-                response = await session.get(f'{BASE_URL}/knigi?page={page}', headers=headers)
+                print(f'----Делаю {counter} страницу [{path}]')
+                if counter == int(page_count):
+                    counter = 0
+                counter += 1
+                response = await session.get(f'{BASE_URL}/{path}?page={page}', headers=headers)
                 soup = bs(await response.text(), "lxml")
                 all_page_items = soup.find('main', class_='right').find_all("div", class_='relative mb-5')
 
                 items_links = [i.find('a')['href'] for i in all_page_items]
                 unique_items_links = set(items_links)
 
-                task = asyncio.create_task(get_thread(list(unique_items_links)[:11]))
+                task = asyncio.create_task(get_thread(list(unique_items_links)))
                 tasks.append(task)
-                counter += 1
 
         await asyncio.gather(*tasks)
 

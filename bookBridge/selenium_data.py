@@ -6,7 +6,6 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.firefox.options import Options
 
 
-
 def get_selenium_page(link):
     s = Service(executable_path='../chromedriver.exe')
     o = webdriver.ChromeOptions()
@@ -23,5 +22,3 @@ def get_selenium_page(link):
         driver.quit()
 
     return page_source
-
-

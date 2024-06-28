@@ -5,6 +5,9 @@ from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.common.by import By
+from selenium.webdriver.support.wait import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
 
 def get_selenium_page(link):
     try:
@@ -15,8 +18,6 @@ def get_selenium_page(link):
         o.add_argument("--no-sandbox")
         driver = webdriver.Chrome(service=s, options=o)
 
-        xpath = 'rounded-full px-5 text-gray-600 hover:bg-gray-100 py-2'
-
         try:
             driver.get('https://www.respublica.ru' + link)
             time.sleep(2)
@@ -26,9 +27,13 @@ def get_selenium_page(link):
                 btn_yes = driver.find_element(By.CLASS_NAME, 'adult-button')
                 btn_yes.click()
                 time.sleep(1)
-            btn = driver.find_element(by=By.CLASS_NAME, value='card-blocks').find_elements(by=By.TAG_NAME, value='li')[1].find_element(by=By.TAG_NAME, value='button')
+
+            btn = driver.find_element(by=By.CLASS_NAME, value='card-blocks').find_elements(by=By.TAG_NAME, value='li')[
+                1].find_element(by=By.TAG_NAME, value='button')
             driver.execute_script("arguments[0].click();", btn)
-            time.sleep(2)
+            time.sleep(1)
+            element_present = EC.presence_of_element_located((By.CLASS_NAME, 'properties'))
+            WebDriverWait(driver, 10).until(element_present)
             prop_list = driver.find_elements(By.CLASS_NAME, 'property')
             prop_dict = {i.text.split(':')[0]: i.text.split(':')[1].strip() for i in prop_list}
         finally:
@@ -38,4 +43,3 @@ def get_selenium_page(link):
     except Exception as e:
         with open('webdriver_error.txt', 'a+') as file:
             file.write(f'{link}\n{e}\n\n')
-
