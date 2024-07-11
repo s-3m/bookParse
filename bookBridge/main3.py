@@ -1,15 +1,11 @@
-import os.path
 import time
-
 from fake_useragent import UserAgent
 from bs4 import BeautifulSoup as bs
 import aiohttp
 import asyncio
 import pandas as pd
-from selenium_data import get_selenium_page
-import datetime
-from concurrent.futures import ThreadPoolExecutor
 from utils import to_write_price_dict
+from playwright.async_api import async_playwright
 
 BASE_URL = "https://bookbridge.ru"
 USER_AGENT = UserAgent()
@@ -32,18 +28,12 @@ id_to_del = []
 id_to_add = []
 
 
-def get_item_data(item, main_category):
+async def get_item_data(page_content, main_category, link):
     global count
     res_dict = {}
-    link = f'{BASE_URL}{item}'
-    res_dict['Ссылка'] = link
-    item_text_page = get_selenium_page(link)
 
     try:
-        soup = bs(item_text_page, 'html.parser')
-
-
-    # soup = bs(await response.text(), 'lxml')
+        soup = bs(page_content, 'html.parser')
 
         try:
             title = soup.find('h1').text
@@ -140,16 +130,20 @@ def get_item_data(item, main_category):
 
 
 async def get_page_data(items, main_category):
-
-    futures = [asyncio.to_thread(get_item_data, item, main_category) for item in items]
-    for i in futures:
-        result.append(await i)
-
-    # with ThreadPoolExecutor() as executor:
-    #     futures = [executor.submit(get_item_data, item, main_category) for item in items]
-    #     result_future = [f.result() for f in futures if f.result() is not None]
-    # for i in result_future:
-    #     result.append(i)
+    async with async_playwright() as playwright:
+        browser = await playwright.chromium.launch(headless=True, args=['--no-sandbox',
+                                                                        '--ignore-certificate-errors',
+                                                                        '--allow-running-insecure-content',
+                                                                        '--disable-blink-features=AutomationControlled'
+                                                                        ])
+        context = await browser.new_context()
+        page = await context.new_page()
+        for item in items:
+            link = BASE_URL + item
+            await page.goto(link)
+            page_content = await page.content()
+            item_result = await get_item_data(page_content, main_category, link)
+            result.append(item_result)
 
 
 async def get_gather_data():
