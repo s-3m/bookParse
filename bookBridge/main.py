@@ -1,12 +1,7 @@
-import pandas as pd
-from pprint import pprint
+import time
 
-# a = pd.read_excel('One.xlsx')
-#
-# b = a.set_index('Артикул').to_dict('index')
-# c = 0
-# pprint(b)
-sample = pd.read_excel("abc.xlsx", converters={"Артикул": str}).set_index('Артикул').to_dict('index')
+a = time.time()
 
-for i in sample:
-    print(sample[i])
+time.sleep(3)
+
+print(time.time() - a)

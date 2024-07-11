@@ -9,6 +9,8 @@ from selenium.webdriver.firefox.options import Options
 def get_selenium_page(link):
     s = Service(executable_path='../chromedriver.exe')
     o = webdriver.ChromeOptions()
+    o.add_argument("--ignore-certificate-errors")
+    o.add_argument('--allow-running-insecure-content')
     o.add_argument('--disable-blink-features=AutomationControlled')
     o.add_argument("--headless")
     driver = webdriver.Chrome(service=s, options=o)
