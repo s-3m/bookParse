@@ -14,7 +14,16 @@ headers = {
     "user-agent": USER_AGENT.random
 }
 
+# df_price_one = pd.read_excel("One.xlsx").set_index('Артикул').to_dict('index')
+# df_price_two = pd.read_excel("Two.xlsx").set_index('Артикул').to_dict('index')
+# df_price_three = pd.read_excel("Three.xlsx").set_index('Артикул').to_dict('index')
+sample = pd.read_excel("abc1.xlsx", converters={"ISBN": str}).set_index('ISBN').to_dict('index')
+
+
 result = []
+id_to_add = []
+id_to_del = []
+
 async def get_item_data(session, link, main_category):
     try:
         item_data = {}
@@ -27,11 +36,13 @@ async def get_item_data(session, link, main_category):
             except:
                 item_data["Названия"] = 'Нет названия'
             try:
-                options = soup.find('div', class_ = "item_basket_cont").find_all("tr")
+                options = soup.find('div', class_="item_basket_cont").find_all("tr")
                 for option in options:
                     item_data[option.find_all("td")[0].text.strip()] = option.find_all("td")[1].text.strip()
+                    if option.find_all("td")[0].text.strip() == "ISBN:":
+                        isbn = option.find_all("td")[1].text.strip()
                 try:
-                    additional_options = soup.find('div', class_ = "additional_information").find_all('tr')
+                    additional_options = soup.find('div', class_="additional_information").find_all('tr')
                     for option in additional_options:
                         item_data[option.find_all("td")[0].text.strip()] = option.find_all("td")[1].text.strip()
                 except:
@@ -58,10 +69,17 @@ async def get_item_data(session, link, main_category):
                 item_data["Фото"] = BASE_URL + photo
             except:
                 item_data["Фото"] = 'Нет изображения'
+
+            if isbn not in sample and quantity == 'есть в наличии':
+                id_to_add.append(item_data)
+            elif isbn in sample and quantity != 'есть в наличии':
+                id_to_del.append({'ISBN': isbn})
             result.append(item_data)
     except Exception as e:
         with open('error.txt', 'a+', encoding='utf-8') as f:
-            f.write(BASE_URL + link + '\n' + e +'\n'*4)
+            f.write(BASE_URL + link + '\n' + e + '\n' * 4)
+
+
 async def get_gather_data():
     tasks = []
     async with (aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False)) as session):
@@ -71,7 +89,7 @@ async def get_gather_data():
         cat_list = soup.find_all("h4")
         cat_list = [item.find('a')['href'] for item in cat_list[:8]]
 
-        for cat_link in cat_list:
+        for cat_link in cat_list[:2]:
             response = await session.get(BASE_URL + cat_link, headers=headers)
             response_text = await response.text()
             soup = bs(response_text, 'lxml')
@@ -79,7 +97,7 @@ async def get_gather_data():
             main_category = soup.find("h1").text.split(' (')[0]
             print(f'\n---Делаю категорию - {main_category}---')
 
-            for page_numb in range(1, pagin_max + 1):
+            for page_numb in range(1, 3):
                 print(f'----------------стр - {page_numb} из {pagin_max}-----------')
                 response = await session.get(f'{BASE_URL}{cat_link}?page={page_numb}')
                 await asyncio.sleep(5)
@@ -87,15 +105,23 @@ async def get_gather_data():
                 soup = bs(response_text, 'lxml')
                 items_on_page = soup.find_all('div', class_='product_img')
                 items_links = [item.find('a')['href'] for item in items_on_page]
-                for link in items_links:
+                for link in items_links[:3]:
                     task = asyncio.create_task(get_item_data(session, link, main_category))
                     tasks.append(task)
         await asyncio.gather(*tasks)
+
 
 def main():
     asyncio.run(get_gather_data())
     df = pd.DataFrame(result)
     df.to_excel('result.xlsx', index=False)
+
+    df_add = pd.DataFrame(id_to_add)
+    df_add.to_excel('add.xlsx', index=False)
+
+    df_del = pd.DataFrame(id_to_del)
+    df_del.to_excel('del.xlsx', index=False)
+
 
 if __name__ == "__main__":
     start_time = time.time()
