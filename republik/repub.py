@@ -102,23 +102,32 @@ async def get_gather_data():
             print(f'Начал {path}')
             response = await session.get(f'{BASE_URL}/{path}', headers=headers)
             soup = bs(await response.text(), "lxml")
-            page_count = soup.find('ul', class_='pages').find_all('a')[-2].text.strip()
+
+            page_count = soup.find('ul', class_='pages')
+            if page_count:
+                page_count = page_count.find_all('a')[-2].text.strip()
+            else:
+                page_count = 1
+
             counter = 1
             for page in range(1, int(page_count) + 1):
-
                 print(f'----Делаю {counter} страницу [{path}]')
                 if counter == int(page_count):
                     counter = 0
                 counter += 1
-                response = await session.get(f'{BASE_URL}/{path}?page={page}', headers=headers)
-                soup = bs(await response.text(), "lxml")
-                all_page_items = soup.find('main', class_='right').find_all("div", class_='relative mb-5')
+                try:
+                    response = await session.get(f'{BASE_URL}/{path}?page={page}', headers=headers)
+                    soup = bs(await response.text(), "lxml")
+                    all_page_items = soup.find('main', class_='right').find_all("div", class_='relative mb-5')
 
-                items_links = [i.find('a')['href'] for i in all_page_items]
-                unique_items_links = set(items_links)
+                    items_links = [i.find('a')['href'] for i in all_page_items]
+                    unique_items_links = set(items_links)
 
-                task = asyncio.create_task(get_thread(list(unique_items_links)))
-                tasks.append(task)
+                    task = asyncio.create_task(get_thread(list(unique_items_links)))
+                    tasks.append(task)
+                except Exception as e:
+                    with open('page_error.txt', 'a+') as file:
+                        file.write(f'{BASE_URL}/{path}?page={page}\n')
 
         await asyncio.gather(*tasks)
 

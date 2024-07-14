@@ -21,6 +21,7 @@ df_price_one = pd.read_excel("One.xlsx").set_index('Артикул').to_dict('in
 df_price_two = pd.read_excel("Two.xlsx").set_index('Артикул').to_dict('index')
 df_price_three = pd.read_excel("Three.xlsx").set_index('Артикул').to_dict('index')
 sample = pd.read_excel("abc.xlsx", converters={"Артикул": str}).set_index('Артикул').to_dict('index')
+
 count = 1
 result = []
 
@@ -106,19 +107,19 @@ def get_item_data(item, main_category):
             except:
                 pass
 
-        if article + '.0'.strip() in df_price_one:
+        if article in df_price_one:
             if len(price) > 1:
                 to_write_price_dict(need_list=price_file_one, id=article, price=price[0].text.strip(),
                                     sale_price=price[1].text.strip())
             else:
                 to_write_price_dict(need_list=price_file_one, id=article, price=price[0].text.strip())
-        elif article + '.0'.strip() in df_price_two:
+        elif article in df_price_two:
             if len(price) > 1:
                 to_write_price_dict(need_list=price_file_two, id=article, price=price[0].text.strip(),
                                     sale_price=price[1].text.strip())
             else:
                 to_write_price_dict(need_list=price_file_two, id=article, price=price[0].text.strip())
-        elif article + '.0'.strip() in df_price_three:
+        elif article in df_price_three:
             if len(price) > 1:
                 to_write_price_dict(need_list=price_file_three, id=article, price=price[0].text.strip(),
                                     sale_price=price[1].text.strip())
@@ -141,15 +142,15 @@ def get_item_data(item, main_category):
 
 async def get_page_data(items, main_category):
 
-    futures = [asyncio.to_thread(get_item_data, item, main_category) for item in items]
-    for i in futures:
-        result.append(await i)
+    # futures = [asyncio.to_thread(get_item_data, item, main_category) for item in items]
+    # for i in futures:
+    #     result.append(await i)
 
-    # with ThreadPoolExecutor() as executor:
-    #     futures = [executor.submit(get_item_data, item, main_category) for item in items]
-    #     result_future = [f.result() for f in futures if f.result() is not None]
-    # for i in result_future:
-    #     result.append(i)
+    with ThreadPoolExecutor() as executor:
+        futures = [executor.submit(get_item_data, item, main_category) for item in items]
+        result_future = [f.result() for f in futures if f.result() is not None]
+    for i in result_future:
+        result.append(i)
 
 
 async def get_gather_data():
@@ -179,7 +180,6 @@ async def get_gather_data():
             try:
                 pagination = soup.find("div", class_="nums").find_all('a')[-1].text
                 all_cat_items = []
-
                 for page in range(1, 4):
                     await asyncio.sleep(5)
 
