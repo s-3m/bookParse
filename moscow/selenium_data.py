@@ -14,7 +14,8 @@ def get_book_data(link):
     o.add_argument("--ignore-certificate-errors")
     o.add_argument('--allow-running-insecure-content')
     o.add_argument('--disable-blink-features=AutomationControlled')
-    # o.add_argument("--headless")
+    o.add_argument("--headless")
+    o.add_argument("--no-sandbox")
     driver = webdriver.Chrome(service=s, options=o)
 
     try:
