@@ -38,106 +38,109 @@ def get_item_data(item, main_category):
     res_dict = {}
     link = f'{BASE_URL}{item}'
     res_dict['Ссылка'] = link
-    item_text_page = get_selenium_page(link)
-
     try:
-        soup = bs(item_text_page, 'html.parser')
-
-
-    # soup = bs(await response.text(), 'lxml')
+        item_text_page = get_selenium_page(link)
 
         try:
-            title = soup.find('h1').text
-            res_dict['Наименование'] = title.strip()
-        except:
-            title = "Нет названия"
-            res_dict['Наименование'] = title.strip()
+            soup = bs(item_text_page, 'html.parser')
 
-        res_dict['Категория'] = main_category
 
-        try:
-            article = soup.find('div', class_='article').find_all('span')[1].text.strip()
-            res_dict['Артикул'] = article
-        except:
-            article = 'Нет артикула'
-            res_dict['Артикул'] = article
+        # soup = bs(await response.text(), 'lxml')
 
-        try:
-            photo_link = soup.find(class_="product-detail-gallery__picture")['data-src']
-            photo_path = BASE_URL + photo_link
-            res_dict['Ссылка на фото'] = photo_path
-        except:
-            res_dict['Ссылка на фото'] = 'Нет фото'
-
-        try:
-            price = soup.find(class_='shadowed-block').find_all('span', class_='price_value')
-            res_dict['Цена'] = price[0].text.strip()
-            res_dict['Действующая цена'] = price[0].text.strip()
-            if len(price) > 1:
-                res_dict['Цена со скидкой'] = price[1].text.strip()
-                res_dict['Действующая цена'] = price[1].text.strip()
-        except:
-            price = 'Цена не указана'
-            res_dict['Цена'] = price
-
-        try:
-            quantity = soup.find(class_='shadowed-block').find(class_='item-stock').find(class_='value').text.strip()
-            res_dict['Наличие'] = quantity
-        except:
-            quantity = 'Наличие не указано'
-            res_dict['Наличие'] = quantity
-
-        try:
-            desc = soup.find(class_='ordered-block desc').find(class_='content').text.strip()
-            res_dict['Описание'] = desc
-        except:
-            res_dict['Описание'] = 'Нет описания'
-
-        try:
-            all_chars = soup.find(class_='char_block').find('table').find_all('tr')
-            for i in all_chars:
-                char = i.find_all('td')
-                res_dict[char[0].text.strip()] = char[1].text.strip()
-        except:
             try:
-                all_chars = soup.find(class_='product-chars').find_all(class_='properties__item')
-                for i in all_chars:
-                    res_dict[i.find(class_='properties__title').text.strip()] = i.find(
-                        class_='properties__value').text.strip()
+                title = soup.find('h1').text
+                res_dict['Наименование'] = title.strip()
             except:
-                pass
+                title = "Нет названия"
+                res_dict['Наименование'] = title.strip()
 
-        if article in df_price_one:
-            if len(price) > 1:
-                to_write_price_dict(need_list=price_file_one, id=article, price=price[0].text.strip(),
-                                    sale_price=price[1].text.strip())
-            else:
-                to_write_price_dict(need_list=price_file_one, id=article, price=price[0].text.strip())
-        elif article in df_price_two:
-            if len(price) > 1:
-                to_write_price_dict(need_list=price_file_two, id=article, price=price[0].text.strip(),
-                                    sale_price=price[1].text.strip())
-            else:
-                to_write_price_dict(need_list=price_file_two, id=article, price=price[0].text.strip())
-        elif article in df_price_three:
-            if len(price) > 1:
-                to_write_price_dict(need_list=price_file_three, id=article, price=price[0].text.strip(),
-                                    sale_price=price[1].text.strip())
-            else:
-                to_write_price_dict(need_list=price_file_three, id=article, price=price[0].text.strip())
+            res_dict['Категория'] = main_category
 
-        if article not in sample and quantity != 'Нет в наличии':
-            id_to_add.append(res_dict)
-        elif article in sample and quantity == 'Нет в наличии':
-            id_to_del.append({"Артикул": article})
+            try:
+                article = soup.find('div', class_='article').find_all('span')[1].text.strip()
+                res_dict['Артикул'] = article
+            except:
+                article = 'Нет артикула'
+                res_dict['Артикул'] = article
 
-        print(f'\r{count}', end='')
-        count = count + 1
-        return res_dict
+            try:
+                photo_link = soup.find(class_="product-detail-gallery__picture")['data-src']
+                photo_path = BASE_URL + photo_link
+                res_dict['Ссылка на фото'] = photo_path
+            except:
+                res_dict['Ссылка на фото'] = 'Нет фото'
 
+            try:
+                price = soup.find(class_='shadowed-block').find_all('span', class_='price_value')
+                res_dict['Цена'] = price[0].text.strip()
+                res_dict['Действующая цена'] = price[0].text.strip()
+                if len(price) > 1:
+                    res_dict['Цена со скидкой'] = price[1].text.strip()
+                    res_dict['Действующая цена'] = price[1].text.strip()
+            except:
+                price = 'Цена не указана'
+                res_dict['Цена'] = price
+
+            try:
+                quantity = soup.find(class_='shadowed-block').find(class_='item-stock').find(class_='value').text.strip()
+                res_dict['Наличие'] = quantity
+            except:
+                quantity = 'Наличие не указано'
+                res_dict['Наличие'] = quantity
+
+            try:
+                desc = soup.find(class_='ordered-block desc').find(class_='content').text.strip()
+                res_dict['Описание'] = desc
+            except:
+                res_dict['Описание'] = 'Нет описания'
+
+            try:
+                all_chars = soup.find(class_='char_block').find('table').find_all('tr')
+                for i in all_chars:
+                    char = i.find_all('td')
+                    res_dict[char[0].text.strip()] = char[1].text.strip()
+            except:
+                try:
+                    all_chars = soup.find(class_='product-chars').find_all(class_='properties__item')
+                    for i in all_chars:
+                        res_dict[i.find(class_='properties__title').text.strip()] = i.find(
+                            class_='properties__value').text.strip()
+                except:
+                    pass
+
+            if article in df_price_one:
+                if len(price) > 1:
+                    to_write_price_dict(need_list=price_file_one, id=article, price=price[0].text.strip(),
+                                        sale_price=price[1].text.strip())
+                else:
+                    to_write_price_dict(need_list=price_file_one, id=article, price=price[0].text.strip())
+            elif article in df_price_two:
+                if len(price) > 1:
+                    to_write_price_dict(need_list=price_file_two, id=article, price=price[0].text.strip(),
+                                        sale_price=price[1].text.strip())
+                else:
+                    to_write_price_dict(need_list=price_file_two, id=article, price=price[0].text.strip())
+            elif article in df_price_three:
+                if len(price) > 1:
+                    to_write_price_dict(need_list=price_file_three, id=article, price=price[0].text.strip(),
+                                        sale_price=price[1].text.strip())
+                else:
+                    to_write_price_dict(need_list=price_file_three, id=article, price=price[0].text.strip())
+
+            if article not in sample and quantity != 'Нет в наличии':
+                id_to_add.append(res_dict)
+            elif article in sample and quantity == 'Нет в наличии':
+                id_to_del.append({"Артикул": article})
+
+            print(f'\r{count}', end='')
+            count = count + 1
+            return res_dict
+
+        except:
+            with open('error_log.txt', 'a+', encoding='utf') as file:
+                file.write(link + '\n')
     except:
-        with open('error_log.txt', 'a+', encoding='utf') as file:
-            file.write(link + '\n')
+        return None
 
 
 async def get_page_data(items, main_category):
@@ -156,43 +159,49 @@ async def get_page_data(items, main_category):
 async def get_gather_data():
     all_need_links = []
 
-    async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False)) as session:
+    async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False), trust_env=True) as session:
         response = await session.get(f'{BASE_URL}/catalog', headers=headers)
         response_text = await response.text()
         soup = bs(response_text, "lxml")
         all_lang = soup.find("div", class_="catalog_section_list").find_all('li')
         all_lang = [i.find('a')['href'] for i in all_lang]
 
-        for lang in all_lang[:1]:
+        for lang in all_lang:
             await asyncio.sleep(1)
-            response = await session.get(f'{BASE_URL}{lang}', headers=headers)
-            soup = bs(await response.text(), "lxml")
-            all_cat = soup.find_all("div", class_="section-compact-list__info")
-            all_need_cat = [i.find('a')['href'] for i in all_cat]
-            all_need_links.extend(all_need_cat)
+            try:
+                response = await session.get(f'{BASE_URL}{lang}', headers=headers)
+                soup = bs(await response.text(), "lxml")
+                all_cat = soup.find_all("div", class_="section-compact-list__info")
+                all_need_cat = [i.find('a')['href'] for i in all_cat]
+                all_need_links.extend(all_need_cat)
+            except:
+                continue
 
         tasks = []
 
-        for link in all_need_links[:2]:
+        for link in all_need_links:
             await asyncio.sleep(5)
-            response = await session.get(f'{BASE_URL}{link}', headers=headers)
-            soup = bs(await response.text(), "lxml")
             try:
-                pagination = soup.find("div", class_="nums").find_all('a')[-1].text
-                all_cat_items = []
-                for page in range(1, 4):
-                    await asyncio.sleep(5)
+                response = await session.get(f'{BASE_URL}{link}', headers=headers)
+                soup = bs(await response.text(), "lxml")
+                try:
+                    pagination = int(soup.find("div", class_="nums").find_all('a')[-1].text.strip())
+                    all_cat_items = []
+                    for page in range(1, pagination + 1):
+                        await asyncio.sleep(5)
 
-                    async with session.get(f'{BASE_URL}{link}?PAGEN_1={page}', headers=headers) as response:
-                        soup = bs(await response.text(), 'lxml')
-                        page_items = soup.find_all('div', class_='item-title')
-                        items = [item.find('a')['href'] for item in page_items]
-                        # all_cat_items.extend(items)
-                        main_category = soup.find('h1').text.strip()
+                        async with session.get(f'{BASE_URL}{link}?PAGEN_1={page}', headers=headers) as response:
+                            soup = bs(await response.text(), 'lxml')
+                            page_items = soup.find_all('div', class_='item-title')
+                            items = [item.find('a')['href'] for item in page_items]
+                            # all_cat_items.extend(items)
+                            main_category = soup.find('h1').text.strip()
 
-                    task = asyncio.create_task(get_page_data(items, main_category))
-                    tasks.append(task)
-            except AttributeError:
+                        task = asyncio.create_task(get_page_data(items, main_category))
+                        tasks.append(task)
+                except:
+                    continue
+            except:
                 continue
         await asyncio.gather(*tasks)
 
