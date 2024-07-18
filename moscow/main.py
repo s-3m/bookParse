@@ -76,13 +76,17 @@ async def get_gather_data():
         max_pagination = soup.find('ul', class_='pager__list').find_all('li')[-2].text
         tasks = []
         for page in range(1, int(max_pagination) + 1):
-            page_response = await session.get(f'{BASE_URL}/books/?page={page}', headers=headers)
-            page_html = await page_response.text()
-            soup = bs(page_html, "lxml")
-            all_books_on_page = soup.find_all('div', class_='catalog__item')
-            all_items = [book.find('a')['href'] for book in all_books_on_page]
-            task = asyncio.create_task(get_page_data(all_items))
-            tasks.append(task)
+            try:
+                page_response = await session.get(f'{BASE_URL}/books/?page={page}', headers=headers)
+                page_html = await page_response.text()
+                soup = bs(page_html, "lxml")
+                all_books_on_page = soup.find_all('div', class_='catalog__item')
+                all_items = [book.find('a')['href'] for book in all_books_on_page]
+                task = asyncio.create_task(get_page_data(all_items))
+                tasks.append(task)
+            except Exception as e:
+                with open('erorr.txt', 'a+') as file:
+                    file.write(f"{page} + - + {e}")
 
         await asyncio.gather(*tasks)
 
