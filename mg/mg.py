@@ -15,6 +15,8 @@ headers = {
 }
 
 result = []
+
+
 async def get_item_data(session, link, main_category):
     try:
         item_data = {}
@@ -27,11 +29,11 @@ async def get_item_data(session, link, main_category):
             except:
                 item_data["Названия"] = 'Нет названия'
             try:
-                options = soup.find('div', class_ = "item_basket_cont").find_all("tr")
+                options = soup.find('div', class_="item_basket_cont").find_all("tr")
                 for option in options:
                     item_data[option.find_all("td")[0].text.strip()] = option.find_all("td")[1].text.strip()
                 try:
-                    additional_options = soup.find('div', class_ = "additional_information").find_all('tr')
+                    additional_options = soup.find('div', class_="additional_information").find_all('tr')
                     for option in additional_options:
                         item_data[option.find_all("td")[0].text.strip()] = option.find_all("td")[1].text.strip()
                 except:
@@ -61,7 +63,9 @@ async def get_item_data(session, link, main_category):
             result.append(item_data)
     except Exception as e:
         with open('error.txt', 'a+', encoding='utf-8') as f:
-            f.write(BASE_URL + link + '\n' + e +'\n'*4)
+            f.write(BASE_URL + link + '\n' + e + '\n' * 4)
+
+
 async def get_gather_data():
     tasks = []
     async with (aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False)) as session):
@@ -92,10 +96,12 @@ async def get_gather_data():
                     tasks.append(task)
         await asyncio.gather(*tasks)
 
+
 def main():
     asyncio.run(get_gather_data())
     df = pd.DataFrame(result)
     df.to_excel('result.xlsx', index=False)
+
 
 if __name__ == "__main__":
     start_time = time.time()

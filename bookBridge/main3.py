@@ -136,12 +136,15 @@ async def get_page_data(items, main_category):
                                                                         '--allow-running-insecure-content',
                                                                         '--disable-blink-features=AutomationControlled'
                                                                         ])
-        context = await browser.new_context()
-        page = await context.new_page()
+
         for item in items:
+            context = await browser.new_context()
+            page = await context.new_page()
             link = BASE_URL + item
             await page.goto(link)
+            await asyncio.sleep(3)
             page_content = await page.content()
+            await page.close()
             item_result = await get_item_data(page_content, main_category, link)
             result.append(item_result)
 
@@ -156,7 +159,7 @@ async def get_gather_data():
         all_lang = soup.find("div", class_="catalog_section_list").find_all('li')
         all_lang = [i.find('a')['href'] for i in all_lang]
 
-        for lang in all_lang[:1]:
+        for lang in all_lang:
             await asyncio.sleep(1)
             response = await session.get(f'{BASE_URL}{lang}', headers=headers)
             soup = bs(await response.text(), "lxml")
@@ -166,7 +169,7 @@ async def get_gather_data():
 
         tasks = []
 
-        for link in all_need_links[:2]:
+        for link in all_need_links:
             await asyncio.sleep(5)
             response = await session.get(f'{BASE_URL}{link}', headers=headers)
             soup = bs(await response.text(), "lxml")
@@ -174,7 +177,7 @@ async def get_gather_data():
                 pagination = soup.find("div", class_="nums").find_all('a')[-1].text
                 all_cat_items = []
 
-                for page in range(1, 4):
+                for page in range(1, int(pagination) + 1):
                     await asyncio.sleep(5)
 
                     async with session.get(f'{BASE_URL}{link}?PAGEN_1={page}', headers=headers) as response:
@@ -195,17 +198,17 @@ def main():
     asyncio.run(get_gather_data())
     df = pd.DataFrame(result)
     df.to_excel('result2.xlsx', index=False)
-    df_one = pd.DataFrame(price_file_one)
-    df_one.to_excel('price_one.xlsx', index=False)
-    df_one = pd.DataFrame(price_file_two)
-    df_one.to_excel('price_two.xlsx', index=False)
-    df_one = pd.DataFrame(price_file_three)
-    df_one.to_excel('price_three.xlsx', index=False)
-
-    df_add = pd.DataFrame(id_to_add)
-    df_add.to_excel("Add.xlsx", index=False)
-    df_del = pd.DataFrame(id_to_del)
-    df_del.to_excel("Del.xlsx", index=False)
+    # df_one = pd.DataFrame(price_file_one)
+    # df_one.to_excel('price_one.xlsx', index=False)
+    # df_one = pd.DataFrame(price_file_two)
+    # df_one.to_excel('price_two.xlsx', index=False)
+    # df_one = pd.DataFrame(price_file_three)
+    # df_one.to_excel('price_three.xlsx', index=False)
+    #
+    # df_add = pd.DataFrame(id_to_add)
+    # df_add.to_excel("Add.xlsx", index=False)
+    # df_del = pd.DataFrame(id_to_del)
+    # df_del.to_excel("Del.xlsx", index=False)
 
 
 if __name__ == "__main__":
