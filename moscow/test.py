@@ -59,8 +59,8 @@ async def get_gather_data():
         soup = bs(response_text, "lxml")
         max_pagination = soup.find('ul', class_='pager__list').find_all('li')[-2].text
         tasks = []
-        # for page in range(1, int(max_pagination) + 1):
-        for page in range(1, 21):
+        for page in range(1, int(max_pagination) + 1):
+        # for page in range(1, 21):
             try:
                 page_response = await session.get(f'{BASE_URL}/books/?page={page}', headers=headers)
                 page_html = await page_response.text()

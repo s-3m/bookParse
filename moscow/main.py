@@ -26,7 +26,8 @@ result = []
 def get_item_data(item):
     global count
     res_dict = {}
-    link = f'{BASE_URL}{item}'
+
+    link = f'{BASE_URL}{item}' if not item.startswith('/') else f'{BASE_URL}{item[1:]}'
     try:
         quantity, page_source = get_book_data(link)
 
@@ -82,7 +83,7 @@ async def get_gather_data():
                 soup = bs(page_html, "lxml")
                 all_books_on_page = soup.find_all('div', class_='catalog__item')
                 all_items = [book.find('a')['href'] for book in all_books_on_page]
-                task = asyncio.create_task(get_page_data(all_items))
+                task = asyncio.create_task(get_page_data(all_items[:5]))
                 tasks.append(task)
             except Exception as e:
                 with open('erorr.txt', 'a+') as file:
