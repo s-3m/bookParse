@@ -1,3 +1,4 @@
+import datetime
 import time
 
 from bs4 import BeautifulSoup as bs
@@ -17,6 +18,10 @@ headers = {
 result = []
 count = 1
 
+cookies = {
+    'ASP.NET_SessionId': 'e4t3auauxqqhc2zki3wcudq2',
+}
+
 
 async def get_item_data(session, link):
     global count
@@ -26,7 +31,7 @@ async def get_item_data(session, link):
             await asyncio.sleep(4)
             soup = bs(await response.text(), "lxml")
             need_element = soup.find_all('script')
-            a = need_element[1].text.split(' = ')[1].replace('false', 'False').replace('true', 'True')
+            a = need_element[1].text.split('MbPageInfo = ')[1].replace('false', 'False').replace('true', 'True')
             need_data_dict = eval(a[:-1])['Products'][0]
             stock = need_data_dict['Stock']
             articul = link.split('/')[-2]
@@ -48,12 +53,13 @@ async def get_item_data(session, link):
 
     except Exception as e:
         with open('erorr.txt', 'a+') as file:
-            file.write(f'{link} ------ {e}')
+            file.write(f'{link} ------ {e}\n')
 
 
 async def get_gather_data():
     tasks = []
-    async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False), trust_env=True) as session:
+    async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False), trust_env=True, cookies=cookies) as session:
+
         response = await session.get(f'{BASE_URL}/books/', headers=headers)
         response_text = await response.text()
         soup = bs(response_text, "lxml")
@@ -73,7 +79,7 @@ async def get_gather_data():
                     tasks.append(task)
             except Exception as e:
                 with open('error_page.txt', 'a+') as file:
-                    file.write(f"{page} + - + {e}")
+                    file.write(f"{page} + - + {e}\n")
 
         await asyncio.gather(*tasks)
 
@@ -81,7 +87,8 @@ async def get_gather_data():
 def main():
     asyncio.run(get_gather_data())
     df = pd.DataFrame(result)
-    df.to_excel('result.xlsx', index=False)
+    now = datetime.datetime.now()
+    df.to_excel(f'moscow_result_{now.day}_{now.month}.xlsx', index=False)
 
 
 if __name__ == "__main__":
