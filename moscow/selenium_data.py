@@ -6,6 +6,7 @@ from selenium.webdriver import Keys
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.firefox.options import Options
+import pandas as pd
 
 
 def get_book_data(link):
@@ -41,3 +42,24 @@ def get_book_data(link):
         driver.quit()
 
     return final_quantity, page_source
+
+# to_del = []
+# my_shop = pd.read_excel('my_shop.xlsx').set_index('Артикул').to_dict('index')
+# new_parse = pd.read_excel('moscow_result_2107.xlsx').set_index('Артикул').to_dict('index')
+# pprint.pprint(my_shop)
+# pprint.pprint(new_parse)
+# for i in my_shop:
+#     if i in new_parse:
+#         my_shop[i]['Наличие'] = new_parse[i]['Наличие']
+#     else:
+#         to_del.append(i)
+# pprint.pprint(my_shop)
+# pprint.pprint(to_del)
+#
+# df = pd.DataFrame().from_dict(my_shop, 'index')
+# df.index.name = 'Артикул'
+# df.index = df.index.astype(str)
+#
+# df.to_excel('try.xlsx')
+
+
