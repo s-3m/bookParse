@@ -5,8 +5,7 @@ from selenium import webdriver
 from selenium.webdriver import Keys
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
-from selenium.webdriver.firefox.options import Options
-import pandas as pd
+from selenium.webdriver.support.select import Select
 
 
 def get_book_data(link):
@@ -22,44 +21,30 @@ def get_book_data(link):
     try:
         driver.get(link)
         time.sleep(2)
+        day_input = driver.find_element(By.XPATH, '/html/body/div/div/form/div[1]/div/div[1]/select')
+        month_input = driver.find_element(By.XPATH, '/html/body/div/div/form/div[1]/div/div[2]/select')
+        year_input = driver.find_element(By.XPATH, '/html/body/div/div/form/div[1]/div/div[3]/select')
+        btn = driver.find_element(By.XPATH, '/html/body/div/div/form/div[2]/div[1]/input')
+
+        select_day = Select(day_input)
+        select_month = Select(month_input)
+        select_year = Select(year_input)
+
+        select_day.select_by_visible_text('25')
+        time.sleep(1)
+        select_month.select_by_visible_text('Июнь')
+        time.sleep(1)
+        select_year.select_by_visible_text('1985')
+        time.sleep(1)
+
+        btn.click()
+        time.sleep(2)
+
+        driver.switch_to.window(driver.window_handles[0])
         page_source = driver.page_source
-        buy_button = driver.find_element(By.XPATH, '/html/body/div[3]/div[1]/div[2]/div[3]/div[1]/div[1]/div[2]/div['
-                                                   '2]/div/a')
-        buy_button.click()
-        time.sleep(1)
-        cart = driver.find_element(By.XPATH, '/html/body/header/div/div/div/div/div[2]/a[1]')
-        cart.click()
-        quantity_input = driver.find_element(By.XPATH, '/html/body/div[2]/div/div[1]/form/div[2]/div/div[1]/div['
-                                                       '2]/div[4]/div/div/input')
-        quantity_input.send_keys(Keys.BACKSPACE)
-        quantity_input.send_keys('999')
-        time.sleep(1)
-        final_quantity = driver.find_element(By.XPATH, '/html/body/div[2]/div/div[1]/form/div[2]/div/div[2]/div['
-                                                       '1]/div/div[2]/dl/dd').text.split('—')[-1].split(' ')[1]
 
     finally:
         driver.close()
         driver.quit()
 
-    return final_quantity, page_source
-
-# to_del = []
-# my_shop = pd.read_excel('my_shop.xlsx').set_index('Артикул').to_dict('index')
-# new_parse = pd.read_excel('moscow_result_2107.xlsx').set_index('Артикул').to_dict('index')
-# pprint.pprint(my_shop)
-# pprint.pprint(new_parse)
-# for i in my_shop:
-#     if i in new_parse:
-#         my_shop[i]['Наличие'] = new_parse[i]['Наличие']
-#     else:
-#         to_del.append(i)
-# pprint.pprint(my_shop)
-# pprint.pprint(to_del)
-#
-# df = pd.DataFrame().from_dict(my_shop, 'index')
-# df.index.name = 'Артикул'
-# df.index = df.index.astype(str)
-#
-# df.to_excel('try.xlsx')
-
-
+    return page_source

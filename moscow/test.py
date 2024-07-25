@@ -1,12 +1,9 @@
-import datetime
-import time
-
 from bs4 import BeautifulSoup as bs
-from pprint import pprint
 from fake_useragent import UserAgent
 import aiohttp
 import asyncio
 import pandas as pd
+from moscow.selenium_data import get_book_data
 
 BASE_URL = "https://www.moscowbooks.ru/"
 USER_AGENT = UserAgent()
@@ -15,7 +12,7 @@ headers = {
     "user-agent": USER_AGENT.random
 }
 
-result = []
+result = {}
 count = 1
 
 cookies = {
@@ -23,75 +20,148 @@ cookies = {
 }
 
 
-async def get_item_data(session, link):
+async def get_item_data(session, link, parse_error=False):
     global count
     item_data = {}
     try:
-        async with session.get(link, headers=headers) as response:
-            await asyncio.sleep(4)
+        async with session.get(link) as response:
+            await asyncio.sleep(15)
             soup = bs(await response.text(), "lxml")
+            age_control = soup.find('input', id='age_verification_form_mode')
+            script_index = 1
+            if age_control:
+                closed_page = get_book_data(link)
+                soup = bs(closed_page, "lxml")
+                script_index = 5
             need_element = soup.find_all('script')
-            a = need_element[1].text.split('MbPageInfo = ')[1].replace('false', 'False').replace('true', 'True')
+            a = need_element[script_index].text.split('MbPageInfo = ')[1].replace('false', 'False').replace('true',
+                                                                                                            'True')
             need_data_dict = eval(a[:-1])['Products'][0]
             stock = need_data_dict['Stock']
             articul = link.split('/')[-2]
-            isbn = 'Нет ISBN'
-            all_details = soup.find_all('dl', class_='book__details-item')
-            for detail in all_details:
-                detail = detail.find_all('dt')
-                if detail[0].text.strip() == 'ISBN:':
-                    isbn = detail[1].text.strip()
+            # all_details = soup.find_all('dl', class_='book__details-item')
+            # for detail in all_details:
+            #     detail = detail.find_all('dt')
+            #     if detail[0].text.strip() == 'ISBN:':
+            #         isbn = detail[1].text.strip()
 
-            item_data['Артикул'] = articul + '.0'
-            item_data['ISBN'] = isbn
-            item_data['Наличие'] = stock
+            articul = articul + '.0'
+            # item_data['Наличие'] = stock
 
             print(f'\r{count}', end='')
             count = count + 1
 
-            result.append(item_data)
+            result[articul] = {'Наличие': stock}
 
     except Exception as e:
-        with open('erorr.txt', 'a+') as file:
-            file.write(f'{link} ------ {e}\n')
+        if parse_error:
+            with open('error.txt', 'a+') as file:
+                file.write(f'parse error ----- {link} ----- {e}\n')
+        else:
+            with open('error.txt', 'a+') as file:
+                file.write(f'{link} ------ {e}\n')
+
+
+async def reparse_error(session):
+    reparse_tasks = []
+    try:
+        with open('error.txt', 'r') as file:
+            error_links_list = [i.split(' ------ ')[0] for i in file.readlines()]
+        for link in error_links_list:
+            task = asyncio.create_task(get_item_data(session, link, parse_error=True))
+            tasks.append(task)
+        await asyncio.gather(*reparse_tasks)
+    except:
+        pass
+
+
+tasks = []
+
+
+async def create_item_task(session, full_link, page_count):
+    for page in range(1, int(page_count) + 1):
+        try:
+            page_response = await session.get(
+                f'{full_link}?sortby=date&sortdown=true&page={page}')
+            page_html = await page_response.text()
+            soup = bs(page_html, "lxml")
+            all_books_on_page = soup.find_all('div', class_='catalog__item')
+            all_items = [book.find('a')['href'] for book in all_books_on_page]
+            for item in all_items:
+                link = f'{BASE_URL}{item}' if not item.startswith('/') else f'{BASE_URL}{item[1:]}'
+                task = asyncio.create_task(get_item_data(session, link))
+                tasks.append(task)
+        except Exception as e:
+            with open('error_page.txt', 'a+') as file:
+                file.write(f"{full_link} --- page {page} --- {e}\n")
 
 
 async def get_gather_data():
-    tasks = []
-    async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False), trust_env=True, cookies=cookies) as session:
+    async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False), trust_env=True,
+                                     cookies=cookies) as session:
 
-        response = await session.get(f'{BASE_URL}/books/', headers=headers)
-        response_text = await response.text()
-        soup = bs(response_text, "lxml")
-        max_pagination = soup.find('ul', class_='pager__list').find_all('li')[-2].text
-        tasks = []
-        for page in range(1, int(max_pagination) + 1):
-        # for page in range(1, 21):
-            try:
-                page_response = await session.get(f'{BASE_URL}/books/?page={page}', headers=headers)
-                page_html = await page_response.text()
-                soup = bs(page_html, "lxml")
-                all_books_on_page = soup.find_all('div', class_='catalog__item')
-                all_items = [book.find('a')['href'] for book in all_books_on_page]
-                for i in all_items:
-                    link = f'{BASE_URL}{i}' if not i.startswith('/') else f'{BASE_URL}{i[1:]}'
-                    task = asyncio.create_task(get_item_data(session, link))
-                    tasks.append(task)
-            except Exception as e:
-                with open('error_page.txt', 'a+') as file:
-                    file.write(f"{page} + - + {e}\n")
+        big_categories = ['/books/', '/books/exclusive-and-collective-editions/', '/bookinist/', '/gift_book/']
+        for big_category in big_categories:
+
+            if big_category == '/books/':
+                response = await session.get(f'{BASE_URL}/books/', headers=headers)
+                response_text = await response.text()
+                soup = bs(response_text, "lxml")
+                soup_categories = soup.find('ul', class_='aside-nav__list').find_all('a')
+                categories_links = [link['href'] for link in soup_categories]
+                categories_links.append('/books/office-and-other/magazines-newspapers/')
+
+                for category_link in categories_links:
+                    response = await session.get(BASE_URL + category_link[1:], headers=headers)
+                    cat_resp_text = await response.text()
+                    cat_soup = bs(cat_resp_text, "lxml")
+                    max_pagination = cat_soup.find('ul', class_='pager__list').find_all('li')[-2].text
+                    if not max_pagination:
+                        max_pagination = 1
+                    full_link = f'{BASE_URL}{category_link}'
+                    await create_item_task(session, full_link, max_pagination)
+
+            elif big_category == '/gift_book/':
+                response = await session.get(f"{BASE_URL}{big_category}")
+                response_text = await response.text()
+                soup = bs(response_text, "lxml")
+                all_cat = soup.find('div', class_='catalog__list').find_all('a')
+                all_cat_list = [i.get('href') for i in all_cat if i.get('href') is not None]
+                for category_link in all_cat_list:
+                    response = await session.get(f'{BASE_URL}{category_link}')
+                    response_text = await response.text()
+                    cat_soup = bs(response_text, "lxml")
+                    max_pagination = cat_soup.find('ul', class_='pager__list')
+                    if not max_pagination:
+                        max_pagination = 1
+                    else:
+                        max_pagination = max_pagination.find_all('li')[-2].text
+                    full_link = f'{BASE_URL}{category_link}'
+                    await create_item_task(session, full_link, max_pagination)
+
+            else:
+                response = await session.get(f"{BASE_URL}{big_category}")
+                response_text = await response.text()
+                cat_soup = bs(response_text, "lxml")
+                max_pagination = cat_soup.find('ul', class_='pager__list').find_all('li')[-2].text
+                full_link = f'{BASE_URL}{big_category}'
+                await create_item_task(session, full_link, max_pagination)
 
         await asyncio.gather(*tasks)
+        await reparse_error(session)
 
 
 def main():
     asyncio.run(get_gather_data())
-    df = pd.DataFrame(result)
-    now = datetime.datetime.now()
-    df.to_excel(f'moscow_result_{now.day}_{now.month}.xlsx', index=False)
+
+    df = pd.DataFrame().from_dict(result, orient='index')
+    df.index.name = 'Артикул'
+    # try:
+    # get_compare(result, df)
+    # except:
+    #     pass
+    df.to_excel(f'new_result.xlsx')
 
 
 if __name__ == "__main__":
-    start_time = time.time()
     main()
-    pprint(time.time() - start_time)
