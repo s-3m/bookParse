@@ -1,7 +1,10 @@
+import asyncio
+
 import aiohttp
 import pandas as pd
 from fake_useragent import UserAgent
 from bs4 import BeautifulSoup as bs
+
 BASE_URL = "https://www.moscowbooks.ru/"
 USER_AGENT = UserAgent()
 headers = {
@@ -13,10 +16,11 @@ to_del = []
 not_in_new_parse = []
 
 
-async def request_to_del_item(item_list, result):
+async def request_to_del_item(item_list, past_day_result):
+    count = 1
     async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False), trust_env=True) as session:
         for item in item_list:
-            response = await session.get(f'{BASE_URL}/book/{int(item)}', headers=headers)
+            response = await session.get(f'{BASE_URL}/book/{item[:-2]}', headers=headers)
             response_text = await response.text()
             soup = bs(response_text, 'lxml')
             if not soup.find('div', class_='book__buy'):
@@ -27,17 +31,14 @@ async def request_to_del_item(item_list, result):
                 need_data_dict = eval(a[:-1])['Products'][0]
                 stock = need_data_dict['Stock']
                 articul = item
+                past_day_result[articul] = {'Наличие': stock}
                 # item_data['Наличие'] = stock
-
-                print(f'\r{count}', end='')
-                count = count + 1
-
-                result[articul] = {'Наличие': stock}
+            print('---- Recheck requests start:')
+            print(f'\r{count}', end='')
+            count = count + 1
 
 
-
-
-async def get_compare(result, df: pd.DataFrame = None):
+async def get_compare(result=None, df: pd.DataFrame = None):
     # parse_result = df.to_dict('index')
     # print(parse_result)
     past_day_result = pd.read_excel('pd.xlsx').set_index('Артикул').to_dict('index')
@@ -48,10 +49,11 @@ async def get_compare(result, df: pd.DataFrame = None):
             past_day_result[item]['Наличие'] = parse_result[item]['Наличие']
         else:
             not_in_new_parse.append(str(item))
-    for i in not_in_new_parse:
-        del past_day_result[float(i)]
 
-    await request_to_del_item(not_in_new_parse, result)
+    await request_to_del_item(not_in_new_parse, past_day_result)
+
+    for i in to_del:
+        del past_day_result[float(i)]
 
     df = pd.DataFrame().from_dict(past_day_result, 'index')
     df.index.name = 'Артикул'
@@ -62,4 +64,4 @@ async def get_compare(result, df: pd.DataFrame = None):
     del_df.to_excel('del.xlsx', index=False)
 
 
-get_compare()
+asyncio.run(get_compare())
