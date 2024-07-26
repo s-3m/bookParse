@@ -22,7 +22,6 @@ cookies = {
 
 async def get_item_data(session, link, parse_error=False):
     global count
-    item_data = {}
     try:
         async with session.get(link) as response:
             await asyncio.sleep(15)
@@ -69,7 +68,7 @@ async def reparse_error(session):
             error_links_list = [i.split(' ------ ')[0] for i in file.readlines()]
         for link in error_links_list:
             task = asyncio.create_task(get_item_data(session, link, parse_error=True))
-            tasks.append(task)
+            reparse_tasks.append(task)
         await asyncio.gather(*reparse_tasks)
     except:
         pass
