@@ -1,11 +1,14 @@
 import time
 
+import pandas.io.formats.excel
 from bs4 import BeautifulSoup as bs
 from pprint import pprint
 from fake_useragent import UserAgent
 import aiohttp
 import asyncio
 import pandas as pd
+
+pandas.io.formats.excel.ExcelFormatter.header_style = None
 
 BASE_URL = "https://www.dkmg.ru"
 USER_AGENT = UserAgent()
@@ -17,7 +20,7 @@ headers = {
 df_price_one = pd.read_excel("price1.xlsx").set_index('Артикул').to_dict('index')
 df_price_two = pd.read_excel("price2.xlsx").set_index('Артикул').to_dict('index')
 df_price_three = pd.read_excel("price3.xlsx").set_index('Артикул').to_dict('index')
-sample = pd.read_excel("abc1.xlsx", converters={"Артикул": str}).set_index('Артикул').to_dict('index')
+sample = pd.read_excel("abc.xlsx", converters={"Артикул": str}).set_index('Артикул').to_dict('index')
 
 result = []
 id_to_add = []
@@ -74,12 +77,12 @@ async def get_item_data(session, link, main_category):
                 id_to_add.append(item_data)
             elif isbn in sample and quantity != 'есть в наличии':
                 id_to_del.append({'Артикул': f'{isbn}.0'})
-            if isbn + '0' in df_price_one:
-                df_price_one[isbn + '0'] = price
-            if isbn + '0' in df_price_two:
-                df_price_two[isbn + '0'] = price
-            if isbn + '0' in df_price_three:
-                df_price_three[isbn + '0'] = price
+            if isbn + '.0' in df_price_one:
+                df_price_one[isbn + '.0']['Цена'] = price
+            if isbn + '.0' in df_price_two:
+                df_price_two[isbn + '.0']['Цена'] = price
+            if isbn + '.0' in df_price_three:
+                df_price_three[isbn + '.0']['Цена'] = price
             result.append(item_data)
     except Exception as e:
         with open('error.txt', 'a+', encoding='utf-8') as f:
@@ -129,12 +132,15 @@ def main():
     df_del.to_excel('del.xlsx', index=False)
 
     df_one = pd.DataFrame().from_dict(df_price_one, orient='index')
+    df_one.index.name = 'Артикул'
     df_one.to_excel('price_one.xlsx')
 
     df_two = pd.DataFrame().from_dict(df_price_two, orient='index')
+    df_two.index.name = 'Артикул'
     df_two.to_excel('price_two.xlsx')
 
     df_three = pd.DataFrame().from_dict(df_price_three, orient='index')
+    df_three.index.name = 'Артикул'
     df_three.to_excel('price_three.xlsx')
 
 
