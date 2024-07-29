@@ -14,15 +14,15 @@ headers = {
     "user-agent": USER_AGENT.random
 }
 
-# df_price_one = pd.read_excel("One.xlsx").set_index('Артикул').to_dict('index')
-# df_price_two = pd.read_excel("Two.xlsx").set_index('Артикул').to_dict('index')
-# df_price_three = pd.read_excel("Three.xlsx").set_index('Артикул').to_dict('index')
-sample = pd.read_excel("abc1.xlsx", converters={"ISBN": str}).set_index('ISBN').to_dict('index')
-
+df_price_one = pd.read_excel("price1.xlsx").set_index('Артикул').to_dict('index')
+df_price_two = pd.read_excel("price2.xlsx").set_index('Артикул').to_dict('index')
+df_price_three = pd.read_excel("price3.xlsx").set_index('Артикул').to_dict('index')
+sample = pd.read_excel("abc1.xlsx", converters={"Артикул": str}).set_index('Артикул').to_dict('index')
 
 result = []
 id_to_add = []
 id_to_del = []
+
 
 async def get_item_data(session, link, main_category):
     try:
@@ -73,11 +73,17 @@ async def get_item_data(session, link, main_category):
             if isbn not in sample and quantity == 'есть в наличии':
                 id_to_add.append(item_data)
             elif isbn in sample and quantity != 'есть в наличии':
-                id_to_del.append({'ISBN': isbn})
+                id_to_del.append({'Артикул': f'{isbn}.0'})
+            if isbn + '0' in df_price_one:
+                df_price_one[isbn + '0'] = price
+            if isbn + '0' in df_price_two:
+                df_price_two[isbn + '0'] = price
+            if isbn + '0' in df_price_three:
+                df_price_three[isbn + '0'] = price
             result.append(item_data)
     except Exception as e:
         with open('error.txt', 'a+', encoding='utf-8') as f:
-            f.write(BASE_URL + link + '\n' + e + '\n' * 4)
+            f.write(f'{BASE_URL}{link} ----- {e}\n')
 
 
 async def get_gather_data():
@@ -121,6 +127,15 @@ def main():
 
     df_del = pd.DataFrame(id_to_del)
     df_del.to_excel('del.xlsx', index=False)
+
+    df_one = pd.DataFrame().from_dict(df_price_one, orient='index')
+    df_one.to_excel('price_one.xlsx')
+
+    df_two = pd.DataFrame().from_dict(df_price_two, orient='index')
+    df_two.to_excel('price_two.xlsx')
+
+    df_three = pd.DataFrame().from_dict(df_price_three, orient='index')
+    df_three.to_excel('price_three.xlsx')
 
 
 if __name__ == "__main__":
