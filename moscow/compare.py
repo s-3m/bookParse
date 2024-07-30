@@ -1,4 +1,5 @@
 import asyncio
+import pprint
 
 import aiohttp
 import pandas as pd
@@ -38,11 +39,11 @@ async def request_to_del_item(item_list, past_day_result):
             count = count + 1
 
 
-async def get_compare(result=None, df: pd.DataFrame = None):
+async def get_compare(parse_result=None, df: pd.DataFrame = None):
     # parse_result = df.to_dict('index')
     # print(parse_result)
     past_day_result = pd.read_excel('pd.xlsx').set_index('Артикул').to_dict('index')
-    parse_result = pd.read_excel('new_result.xlsx').set_index('Артикул').to_dict('index')
+    # parse_result = pd.read_excel('new_result.xlsx').set_index('Артикул').to_dict('index')
 
     for item in past_day_result:
         if item in parse_result:
@@ -64,4 +65,4 @@ async def get_compare(result=None, df: pd.DataFrame = None):
     del_df.to_excel('del.xlsx', index=False)
 
 
-asyncio.run(get_compare())
+# asyncio.run(get_compare())

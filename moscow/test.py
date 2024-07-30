@@ -3,6 +3,8 @@ from fake_useragent import UserAgent
 import aiohttp
 import asyncio
 import pandas as pd
+
+from compare import get_compare
 from selenium_data import get_book_data
 
 BASE_URL = "https://www.moscowbooks.ru/"
@@ -155,11 +157,12 @@ def main():
 
     df = pd.DataFrame().from_dict(result, orient='index')
     df.index.name = 'Артикул'
-    # try:
-    # get_compare(result, df)
-    # except:
-    #     pass
     df.to_excel(f'new_result.xlsx')
+    try:
+        get_compare(result)
+    except Exception as e:
+        with open('error_compare.txt', 'a+') as file:
+            file.write(f'{e}\n')
 
 
 if __name__ == "__main__":
