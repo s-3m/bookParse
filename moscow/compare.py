@@ -6,6 +6,8 @@ import pandas as pd
 from fake_useragent import UserAgent
 from bs4 import BeautifulSoup as bs
 
+from selenium_data import get_book_data
+
 BASE_URL = "https://www.moscowbooks.ru/"
 USER_AGENT = UserAgent()
 headers = {
@@ -21,14 +23,23 @@ async def request_to_del_item(item_list, past_day_result):
     count = 1
     async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False), trust_env=True) as session:
         for item in item_list:
-            response = await session.get(f'{BASE_URL}/book/{item[:-2]}', headers=headers)
+            link = f'{BASE_URL}/book/{item[:-2]}'
+            response = await session.get(link, headers=headers)
             response_text = await response.text()
             soup = bs(response_text, 'lxml')
+
+            age_control = soup.find('input', id='age_verification_form_mode')
+            script_index = 1
+            if age_control:
+                closed_page = get_book_data(link)
+                soup = bs(closed_page, "lxml")
+                script_index = 5
+
             if not soup.find('div', class_='book__buy'):
                 to_del.append(item)
             else:
                 need_element = soup.find_all('script')
-                a = need_element[1].text.split('MbPageInfo = ')[1].replace('false', 'False').replace('true', 'True')
+                a = need_element[script_index].text.split('MbPageInfo = ')[1].replace('false', 'False').replace('true', 'True')
                 need_data_dict = eval(a[:-1])['Products'][0]
                 stock = need_data_dict['Stock']
                 articul = item
@@ -42,14 +53,14 @@ async def request_to_del_item(item_list, past_day_result):
 async def get_compare(parse_result=None, df: pd.DataFrame = None):
     # parse_result = df.to_dict('index')
     # print(parse_result)
-    past_day_result = pd.read_excel('pd.xlsx').set_index('Артикул').to_dict('index')
+    past_day_result = pd.read_excel('pd.xlsx', converters={'Артикул': str}).set_index('Артикул').to_dict('index')
     # parse_result = pd.read_excel('new_result.xlsx').set_index('Артикул').to_dict('index')
 
     for item in past_day_result:
         if item in parse_result:
             past_day_result[item]['Наличие'] = parse_result[item]['Наличие']
         else:
-            not_in_new_parse.append(str(item))
+            not_in_new_parse.append(item)
 
     await request_to_del_item(not_in_new_parse, past_day_result)
 

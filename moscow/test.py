@@ -1,3 +1,5 @@
+import os
+
 from bs4 import BeautifulSoup as bs
 from fake_useragent import UserAgent
 import aiohttp
@@ -57,21 +59,30 @@ async def get_item_data(session, link, parse_error=False):
     except Exception as e:
         if parse_error:
             with open('error.txt', 'a+') as file:
-                file.write(f'parse error ----- {link} ----- {e}\n')
+                file.write(f'{link} ------ reparse error ------ {e}\n')
         else:
             with open('error.txt', 'a+') as file:
                 file.write(f'{link} ------ {e}\n')
 
 
 async def reparse_error(session):
+    reparse_count = 0
     reparse_tasks = []
+    error_file = 'error.txt'
     try:
-        with open('error.txt', 'r') as file:
-            error_links_list = [i.split(' ------ ')[0] for i in file.readlines()]
-        for link in error_links_list:
-            task = asyncio.create_task(get_item_data(session, link, parse_error=True))
-            reparse_tasks.append(task)
-        await asyncio.gather(*reparse_tasks)
+        while True:
+            if not os.path.exists(error_file) or reparse_count > 10:
+                break
+            else:
+                with open('error.txt', 'r') as file:
+                    error_links_list = [i.split(' ------ ')[0] for i in file.readlines()]
+                    os.remove('error.txt')
+                if error_links_list:
+                    for link in error_links_list:
+                        task = asyncio.create_task(get_item_data(session, link, parse_error=True))
+                        reparse_tasks.append(task)
+                    await asyncio.gather(*reparse_tasks)
+                    reparse_count += 1
     except:
         pass
 
@@ -80,7 +91,8 @@ tasks = []
 
 
 async def create_item_task(session, full_link, page_count):
-    for page in range(1, int(page_count) + 1):
+    # for page in range(1, int(page_count) + 1):
+    for page in range(1, 3):
         try:
             page_response = await session.get(
                 f'{full_link}?sortby=date&sortdown=true&page={page}')
@@ -102,6 +114,7 @@ async def get_gather_data():
                                      cookies=cookies) as session:
 
         big_categories = ['/books/', '/books/exclusive-and-collective-editions/', '/bookinist/', '/gift_book/']
+
         for big_category in big_categories:
 
             if big_category == '/books/':
@@ -112,7 +125,7 @@ async def get_gather_data():
                 categories_links = [link['href'] for link in soup_categories]
                 categories_links.append('/books/office-and-other/magazines-newspapers/')
 
-                for category_link in categories_links:
+                for category_link in categories_links[:2]:
                     response = await session.get(BASE_URL + category_link[1:], headers=headers)
                     cat_resp_text = await response.text()
                     cat_soup = bs(cat_resp_text, "lxml")
@@ -128,7 +141,7 @@ async def get_gather_data():
                 soup = bs(response_text, "lxml")
                 all_cat = soup.find('div', class_='catalog__list').find_all('a')
                 all_cat_list = [i.get('href') for i in all_cat if i.get('href') is not None]
-                for category_link in all_cat_list:
+                for category_link in all_cat_list[:2]:
                     response = await session.get(f'{BASE_URL}{category_link}')
                     response_text = await response.text()
                     cat_soup = bs(response_text, "lxml")
@@ -159,7 +172,7 @@ def main():
     df.index.name = 'Артикул'
     df.to_excel(f'new_result.xlsx')
     try:
-        get_compare(result)
+        asyncio.run(get_compare(result))
     except Exception as e:
         with open('error_compare.txt', 'a+') as file:
             file.write(f'{e}\n')
