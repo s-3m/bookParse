@@ -91,8 +91,8 @@ tasks = []
 
 
 async def create_item_task(session, full_link, page_count):
-    # for page in range(1, int(page_count) + 1):
-    for page in range(1, 3):
+    for page in range(1, int(page_count) + 1):
+    # for page in range(1, 3):
         try:
             page_response = await session.get(
                 f'{full_link}?sortby=date&sortdown=true&page={page}')
@@ -125,7 +125,7 @@ async def get_gather_data():
                 categories_links = [link['href'] for link in soup_categories]
                 categories_links.append('/books/office-and-other/magazines-newspapers/')
 
-                for category_link in categories_links[:2]:
+                for category_link in categories_links:
                     response = await session.get(BASE_URL + category_link[1:], headers=headers)
                     cat_resp_text = await response.text()
                     cat_soup = bs(cat_resp_text, "lxml")
@@ -141,7 +141,7 @@ async def get_gather_data():
                 soup = bs(response_text, "lxml")
                 all_cat = soup.find('div', class_='catalog__list').find_all('a')
                 all_cat_list = [i.get('href') for i in all_cat if i.get('href') is not None]
-                for category_link in all_cat_list[:2]:
+                for category_link in all_cat_list:
                     response = await session.get(f'{BASE_URL}{category_link}')
                     response_text = await response.text()
                     cat_soup = bs(response_text, "lxml")
@@ -171,11 +171,9 @@ def main():
     df = pd.DataFrame().from_dict(result, orient='index')
     df.index.name = 'Артикул'
     df.to_excel(f'new_result.xlsx')
-    try:
-        asyncio.run(get_compare(result))
-    except Exception as e:
-        with open('error_compare.txt', 'a+') as file:
-            file.write(f'{e}\n')
+
+
+    asyncio.run(get_compare(result))
 
 
 if __name__ == "__main__":
