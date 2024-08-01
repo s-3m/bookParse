@@ -7,6 +7,7 @@ from pandas.io.formats import excel
 from fake_useragent import UserAgent
 from bs4 import BeautifulSoup as bs
 import time
+import schedule
 
 from email_me import send_email
 from selenium_data import get_book_data
@@ -26,7 +27,7 @@ count = 1
 async def to_check_item(article, session, past_day_result):
     global count
     link = f'{BASE_URL}/book/{article[:-2]}'
-    await asyncio.sleep(10)
+    # await asyncio.sleep(10)
     try:
         response = await session.get(link, headers=headers)
         response_text = await response.text()
@@ -49,7 +50,7 @@ async def to_check_item(article, session, past_day_result):
             stock = need_data_dict['Stock']
             past_day_result[article] = {'Наличие': stock}
 
-        print(f'\r{count}')
+        print(f'\r{count}', end='')
         count += 1
     except Exception as e:
         with open('just_compare_error.txt', 'a+') as f:
@@ -64,12 +65,14 @@ async def reparse_error(session, past_day_result):
             if not os.path.exists(error_file) or reparse_count > 10:
                 break
             else:
+                print('----------------------Start error parsing---------------------------')
                 with open(error_file, 'r') as file:
                     error_links_list = [i.split(' ------ ')[0] for i in file.readlines()]
                     article_list = [link.split('/')[-2] + '.0' for link in error_links_list]
                     os.remove(error_file)
                 if error_links_list:
-                    await to_check_item(article_list, session, past_day_result)
+                    for article in article_list:
+                        await to_check_item(article, session, past_day_result)
                 reparse_count += 1
     except:
         pass
@@ -82,9 +85,7 @@ async def get_compare():
     article_list = list(past_day_result.keys())
     async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False), trust_env=True) as session:
         for article in article_list:
-            task = asyncio.create_task(to_check_item(article, session, past_day_result))
-            tasks.append(task)
-        await asyncio.gather(*tasks)
+            await to_check_item(article, session, past_day_result)
         await reparse_error(session, past_day_result)
 
     df = pd.DataFrame().from_dict(past_day_result, 'index')
@@ -102,5 +103,12 @@ def main():
     send_email()
 
 
+def super_main():
+    schedule.every().day.at('6:00').do(main)
+
+    while True:
+        schedule.run_pending()
+
+
 if __name__ == '__main__':
-    main()
+    super_main()
