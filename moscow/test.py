@@ -92,7 +92,7 @@ tasks = []
 
 async def create_item_task(session, full_link, page_count):
     for page in range(1, int(page_count) + 1):
-    # for page in range(1, 3):
+        # for page in range(1, 3):
         try:
             page_response = await session.get(
                 f'{full_link}?sortby=date&sortdown=true&page={page}')
@@ -107,6 +107,7 @@ async def create_item_task(session, full_link, page_count):
         except Exception as e:
             with open('error_page.txt', 'a+') as file:
                 file.write(f"{full_link} --- page {page} --- {e}\n")
+            continue
 
 
 async def get_gather_data():

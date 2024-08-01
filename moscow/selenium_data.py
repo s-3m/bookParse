@@ -40,7 +40,7 @@ def get_book_data(link):
         btn.click()
         time.sleep(2)
 
-        driver.switch_to.window(driver.window_handles[0])
+        # driver.switch_to.window(driver.window_handles[0])
         page_source = driver.page_source
 
     finally:
