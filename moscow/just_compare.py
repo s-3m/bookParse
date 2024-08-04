@@ -104,7 +104,7 @@ def main():
 
 
 def super_main():
-    schedule.every().day.at('6:00').do(main)
+    schedule.every().day.at('06:00').do(main)
 
     while True:
         schedule.run_pending()
