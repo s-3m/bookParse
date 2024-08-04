@@ -19,12 +19,11 @@ headers = {
     "user-agent": USER_AGENT.random
 }
 
-to_del = []
 excel.ExcelFormatter.header_style = None
 count = 1
 
 
-async def to_check_item(article, session, past_day_result):
+async def to_check_item(article, session, past_day_result, to_del):
     global count
     link = f'{BASE_URL}/book/{article[:-2]}'
     # await asyncio.sleep(10)
@@ -57,7 +56,7 @@ async def to_check_item(article, session, past_day_result):
             f.write(f'{link} ------ {e}\n')
 
 
-async def reparse_error(session, past_day_result):
+async def reparse_error(session, past_day_result, to_del):
     reparse_count = 0
     error_file = 'just_compare_error.txt'
     try:
@@ -72,7 +71,7 @@ async def reparse_error(session, past_day_result):
                     os.remove(error_file)
                 if error_links_list:
                     for article in article_list:
-                        await to_check_item(article, session, past_day_result)
+                        await to_check_item(article, session, past_day_result, to_del)
                 reparse_count += 1
     except:
         pass
@@ -80,13 +79,14 @@ async def reparse_error(session, past_day_result):
 
 async def get_compare():
     tasks = []
+    to_del = []
     past_day_result = pd.read_excel('new_stock.xlsx', converters={'Артикул': str}).set_index('Артикул').to_dict(
         'index')
     article_list = list(past_day_result.keys())
     async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False), trust_env=True) as session:
         for article in article_list:
-            await to_check_item(article, session, past_day_result)
-        await reparse_error(session, past_day_result)
+            await to_check_item(article, session, past_day_result, to_del)
+        await reparse_error(session, past_day_result, to_del)
 
     df = pd.DataFrame().from_dict(past_day_result, 'index')
     df.index.name = 'Артикул'
