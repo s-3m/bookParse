@@ -186,8 +186,12 @@ async def get_gather_data():
                 response = await session.get(f'{BASE_URL}{link}', headers=headers)
                 soup = bs(await response.text(), "lxml")
                 try:
-                    pagination = int(soup.find("div", class_="nums").find_all('a')[-1].text.strip())
-                    all_cat_items = []
+                    pagination = soup.find("div", class_="nums")
+                    if pagination:
+                        pagination = int(pagination.find_all('a')[-1].text.strip())
+                    else:
+                        pagination = 1
+
                     for page in range(1, pagination + 1):
                         await asyncio.sleep(5)
 
@@ -195,7 +199,6 @@ async def get_gather_data():
                             soup = bs(await response.text(), 'lxml')
                             page_items = soup.find_all('div', class_='item-title')
                             items = [item.find('a')['href'] for item in page_items]
-                            # all_cat_items.extend(items)
                             main_category = soup.find('h1').text.strip()
 
                         task = asyncio.create_task(get_page_data(items, main_category))
