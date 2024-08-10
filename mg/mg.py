@@ -99,24 +99,29 @@ async def get_gather_data():
         cat_list = [item.find('a')['href'] for item in cat_list[:8]]
 
         for cat_link in cat_list:
-            response = await session.get(BASE_URL + cat_link, headers=headers)
-            response_text = await response.text()
-            soup = bs(response_text, 'lxml')
-            pagin_max = int(soup.find("div", class_="navitem").find_all("a")[-2]['href'].split('=')[-1])
-            main_category = soup.find("h1").text.split(' (')[0]
-            print(f'\n---Делаю категорию - {main_category}---')
-
-            for page_numb in range(1, pagin_max + 1):
-                print(f'----------------стр - {page_numb} из {pagin_max}-----------')
-                response = await session.get(f'{BASE_URL}{cat_link}?page={page_numb}')
-                await asyncio.sleep(5)
+            try:
+                response = await session.get(BASE_URL + cat_link, headers=headers)
                 response_text = await response.text()
                 soup = bs(response_text, 'lxml')
-                items_on_page = soup.find_all('div', class_='product_img')
-                items_links = [item.find('a')['href'] for item in items_on_page]
-                for link in items_links:
-                    task = asyncio.create_task(get_item_data(session, link, main_category))
-                    tasks.append(task)
+                pagin_max = int(soup.find("div", class_="navitem").find_all("a")[-2]['href'].split('=')[-1])
+                main_category = soup.find("h1").text.split(' (')[0]
+                print(f'\n---Делаю категорию - {main_category}---')
+
+                for page_numb in range(1, pagin_max + 1):
+                    print(f'----------------стр - {page_numb} из {pagin_max}-----------')
+                    response = await session.get(f'{BASE_URL}{cat_link}?page={page_numb}')
+                    await asyncio.sleep(5)
+                    response_text = await response.text()
+                    soup = bs(response_text, 'lxml')
+                    items_on_page = soup.find_all('div', class_='product_img')
+                    items_links = [item.find('a')['href'] for item in items_on_page]
+                    for link in items_links:
+                        task = asyncio.create_task(get_item_data(session, link, main_category))
+                        tasks.append(task)
+            except Exception as e:
+                with open('cat_error.txt', 'a+') as f:
+                    f.write(f'{BASE_URL}{cat_link} ----- {e}\n')
+                    continue
         await asyncio.gather(*tasks)
 
 

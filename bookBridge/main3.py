@@ -1,33 +1,29 @@
-import os.path
 import time
 
+import pandas.io.formats.excel
 from fake_useragent import UserAgent
 from bs4 import BeautifulSoup as bs
 import aiohttp
 import asyncio
 import pandas as pd
 from selenium_data import get_selenium_page
-import datetime
 from concurrent.futures import ThreadPoolExecutor
-from utils import to_write_price_dict
 
+
+pandas.io.formats.excel.ExcelFormatter.header_style = None
 BASE_URL = "https://bookbridge.ru"
 USER_AGENT = UserAgent()
 headers = {
     "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
     "user-agent": USER_AGENT.random
 }
-df_price_one = pd.read_excel("One.xlsx").set_index('Артикул').to_dict('index')
-df_price_two = pd.read_excel("Two.xlsx").set_index('Артикул').to_dict('index')
-df_price_three = pd.read_excel("Three.xlsx").set_index('Артикул').to_dict('index')
+df_price_one = pd.read_excel("one.xlsx").set_index('Артикул').to_dict('index')
+df_price_two = pd.read_excel("two.xlsx").set_index('Артикул').to_dict('index')
+df_price_three = pd.read_excel("three.xlsx").set_index('Артикул').to_dict('index')
 sample = pd.read_excel("abc.xlsx", converters={"Артикул": str}).set_index('Артикул').to_dict('index')
 
 count = 1
 result = []
-
-price_file_one = []
-price_file_two = []
-price_file_three = []
 
 id_to_del = []
 id_to_add = []
@@ -108,29 +104,36 @@ def get_item_data(item, main_category):
                 except:
                     pass
 
-            if article in df_price_one:
+            if article + '.0' in df_price_one:
                 if len(price) > 1:
-                    to_write_price_dict(need_list=price_file_one, id=article, price=price[0].text.strip(),
-                                        sale_price=price[1].text.strip())
+                    df_price_one[article + '.0']['Цена со скидкой'] = price[1].text.strip()
+                    df_price_one[article + '.0']['Цена'] = price[0].text.strip()
+                    df_price_one[article + '.0']['Действующая цена'] = price[1].text.strip()
                 else:
-                    to_write_price_dict(need_list=price_file_one, id=article, price=price[0].text.strip())
-            elif article in df_price_two:
+                    df_price_one[article + '.0']['Цена'] = price[0].text.strip()
+                    df_price_one[article + '.0']['Действующая цена'] = price[0].text.strip()
+            elif article + '.0' in df_price_two:
                 if len(price) > 1:
-                    to_write_price_dict(need_list=price_file_two, id=article, price=price[0].text.strip(),
-                                        sale_price=price[1].text.strip())
+                    df_price_two[article + '.0']['Цена со скидкой'] = price[1].text.strip()
+                    df_price_two[article + '.0']['Цена'] = price[0].text.strip()
+                    df_price_two[article + '.0']['Действующая цена'] = price[1].text.strip()
                 else:
-                    to_write_price_dict(need_list=price_file_two, id=article, price=price[0].text.strip())
-            elif article in df_price_three:
+                    df_price_two[article + '.0']['Цена'] = price[0].text.strip()
+                    df_price_two[article + '.0']['Действующая цена'] = price[0].text.strip()
+            elif article + '.0' in df_price_three:
                 if len(price) > 1:
-                    to_write_price_dict(need_list=price_file_three, id=article, price=price[0].text.strip(),
-                                        sale_price=price[1].text.strip())
+                    df_price_three[article + '.0']['Цена со скидкой'] = price[1].text.strip()
+                    df_price_three[article + '.0']['Цена'] = price[0].text.strip()
+                    df_price_three[article + '.0']['Действующая цена'] = price[1].text.strip()
                 else:
-                    to_write_price_dict(need_list=price_file_three, id=article, price=price[0].text.strip())
+                    df_price_three[article + '.0']['Цена'] = price[0].text.strip()
+                    df_price_three[article + '.0']['Действующая цена'] = price[0].text.strip()
 
-            if article not in sample and quantity != 'Нет в наличии':
+            if article + '.0' not in sample and quantity != 'Нет в наличии':
+                res_dict['Артикул'] = article + '.0'
                 id_to_add.append(res_dict)
-            elif article in sample and quantity == 'Нет в наличии':
-                id_to_del.append({"Артикул": article})
+            elif article + '.0' in sample and quantity == 'Нет в наличии':
+                id_to_del.append({"Артикул": article + '.0'})
 
             print(f'\r{count}', end='')
             count = count + 1
@@ -208,19 +211,27 @@ async def get_gather_data():
 
 def main():
     asyncio.run(get_gather_data())
+
     df = pd.DataFrame(result)
-    df.to_excel('result2.xlsx', index=False)
-    df_one = pd.DataFrame(price_file_one)
-    df_one.to_excel('price_one.xlsx', index=False)
-    df_one = pd.DataFrame(price_file_two)
-    df_one.to_excel('price_two.xlsx', index=False)
-    df_one = pd.DataFrame(price_file_three)
-    df_one.to_excel('price_three.xlsx', index=False)
+    df.to_excel('all_result.xlsx', index=False)
+
+    df_one = pd.DataFrame().from_dict(df_price_one, orient='index')
+    df_one.index.name = 'Артикул'
+    df_one.to_excel('price_one.xlsx')
+
+    df_two = pd.DataFrame().from_dict(df_price_two, orient='index')
+    df_two.index.name = 'Артикул'
+    df_two.to_excel('price_two.xlsx')
+
+    df_three = pd.DataFrame().from_dict(df_price_three, orient='index')
+    df_three.index.name = 'Артикул'
+    df_three.to_excel('price_three.xlsx')
 
     df_add = pd.DataFrame(id_to_add)
-    df_add.to_excel("Add.xlsx", index=False)
+    df_add.to_excel("add.xlsx", index=False)
+
     df_del = pd.DataFrame(id_to_del)
-    df_del.to_excel("Del.xlsx", index=False)
+    df_del.to_excel("del.xlsx", index=False)
 
 
 if __name__ == "__main__":
