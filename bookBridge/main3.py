@@ -68,13 +68,22 @@ def get_item_data(item, main_category):
 
             try:
                 price = soup.find(class_='shadowed-block').find_all('span', class_='price_value')
-                res_dict['Цена'] = price[0].text.strip()
-                res_dict['Действующая цена'] = price[0].text.strip()
+                int_price = int(''.join(n for n in price[0].text if n.isalnum()))
+                res_dict['Цена'] = int_price
+                res_dict['Действующая цена'] = int_price
                 if len(price) > 1:
-                    res_dict['Цена со скидкой'] = price[1].text.strip()
-                    res_dict['Действующая цена'] = price[1].text.strip()
+                    max_price = max([int(''.join(n for n in price[1].text if n.isalnum())),
+                                     int(''.join(n for n in price[0].text if n.isalnum()))])
+                    sale_price = min([int(''.join(n for n in price[1].text if n.isalnum())),
+                                     int(''.join(n for n in price[0].text if n.isalnum()))])
+                    res_dict['Цена'] = max_price
+                    res_dict['Цена со скидкой'] = sale_price
+                    res_dict['Действующая цена'] = sale_price
             except:
                 price = 'Цена не указана'
+                int_price = 'Цена не указана'
+                max_price = 'Цена не указана'
+                sale_price = 'Цена не указана'
                 res_dict['Цена'] = price
 
             try:
@@ -104,30 +113,19 @@ def get_item_data(item, main_category):
                 except:
                     pass
 
-            if article + '.0' in df_price_one:
-                if len(price) > 1:
-                    df_price_one[article + '.0']['Цена со скидкой'] = price[1].text.strip()
-                    df_price_one[article + '.0']['Цена'] = price[0].text.strip()
-                    df_price_one[article + '.0']['Действующая цена'] = price[1].text.strip()
-                else:
-                    df_price_one[article + '.0']['Цена'] = price[0].text.strip()
-                    df_price_one[article + '.0']['Действующая цена'] = price[0].text.strip()
-            elif article + '.0' in df_price_two:
-                if len(price) > 1:
-                    df_price_two[article + '.0']['Цена со скидкой'] = price[1].text.strip()
-                    df_price_two[article + '.0']['Цена'] = price[0].text.strip()
-                    df_price_two[article + '.0']['Действующая цена'] = price[1].text.strip()
-                else:
-                    df_price_two[article + '.0']['Цена'] = price[0].text.strip()
-                    df_price_two[article + '.0']['Действующая цена'] = price[0].text.strip()
-            elif article + '.0' in df_price_three:
-                if len(price) > 1:
-                    df_price_three[article + '.0']['Цена со скидкой'] = price[1].text.strip()
-                    df_price_three[article + '.0']['Цена'] = price[0].text.strip()
-                    df_price_three[article + '.0']['Действующая цена'] = price[1].text.strip()
-                else:
-                    df_price_three[article + '.0']['Цена'] = price[0].text.strip()
-                    df_price_three[article + '.0']['Действующая цена'] = price[0].text.strip()
+            for d in [df_price_one, df_price_two, df_price_three]:
+                if article + '.0' in d:
+                    d[article + '.0']['Цена'] = ''
+                    d[article + '.0']['Цена со скидкой'] = ''
+                    d[article + '.0']['Действующая цена'] = ''
+                    if len(price) > 1:
+                        d[article + '.0']['Цена со скидкой'] = sale_price
+                        d[article + '.0']['Цена'] = max_price
+                        d[article + '.0']['Действующая цена'] = sale_price
+                    else:
+                        d[article + '.0']['Цена'] = int_price
+                        d[article + '.0']['Действующая цена'] = int_price
+                    break
 
             if article + '.0' not in sample and quantity != 'Нет в наличии':
                 res_dict['Артикул'] = article + '.0'
@@ -139,9 +137,9 @@ def get_item_data(item, main_category):
             count = count + 1
             return res_dict
 
-        except:
+        except Exception as e:
             with open('error_log.txt', 'a+', encoding='utf') as file:
-                file.write(link + '\n')
+                file.write(f'{link} --- {e}\n')
     except:
         return None
 
@@ -237,4 +235,5 @@ def main():
 if __name__ == "__main__":
     a = time.time()
     main()
+    print()
     print(time.time() - a)
