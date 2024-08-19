@@ -11,7 +11,7 @@ ajax_headers = {
 
 
 async def get_item_id(session, item):
-    isbn = item['article'][:-2]
+    isbn = item[:-2]
     await asyncio.sleep(5)
     # try:
     async with session.get(
