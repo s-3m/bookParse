@@ -11,13 +11,13 @@ ajax_headers = {
 
 
 async def get_item_id(session, item):
-    isbn = item['article'][:-2]
+    isbn = item[:-2]
     await asyncio.sleep(5)
     # try:
     async with session.get(
             f'https://www.dkmg.ru/ajax/ajax_search.php?term={isbn}&Catalog_ID=0&Series_ID=&Publisher_ID=&Year_Biblio=',
             headers=ajax_headers) as response:
-        await asyncio.sleep(10)
-        resp = await response.json(content_type='text/html', encoding='utf-8')
+        await asyncio.sleep(5)
+        resp = await response.json(content_type='text/html', encoding='utf-8-sig')
         item_id = resp[0]['value'].split('/')[-1].strip()
     return item_id
