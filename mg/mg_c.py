@@ -81,6 +81,23 @@ async def get_item_list(session, cat_list):
     return tasks
 
 
+async def check_empty_stock(session, item):
+    item_id = sample[item]['id']
+    try:
+        if not item_id:
+            item_id = await get_item_id(session, item)
+        if item_id and item_id != '#':
+            sample[item]['id'] = item_id
+            link = f'/tovar/{item_id}'
+            await get_item_data(session, link)
+        else:
+            sample[item]['stock'] = 'del'
+    except Exception as e:
+        with open('check_empty_error.txt', 'a+') as f:
+            f.write(f'{item} --- {item_id} --- {e}')
+
+
+
 async def get_gather_data():
     async with (aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False, limit_per_host=10)) as session):
         response = await session.get(BASE_URL, headers=headers)
@@ -92,23 +109,18 @@ async def get_gather_data():
 
         await asyncio.gather(*tasks)
 
+        print('+++++ Start parse empty stock +++++')
+        await asyncio.sleep(300)
         empty_stock_tasks = []
         for item in sample:
             if not sample[item]['stock']:
-                item_id = sample[item]['id']
-                if not item_id:
-                    item_id = await get_item_id(session, item)
-                    if item_id:
-                        sample[item]['id'] = item_id
-                if item_id:
-                    link = f'/tovar/{item_id}'
-                    task = asyncio.create_task(get_item_data(session, link))
-                    await asyncio.sleep(5)
-                    empty_stock_tasks.append(task)
-                else:
-                    sample[item]['stock'] = 'check for del'
+                task = asyncio.create_task(check_empty_stock(session, item))
+                empty_stock_tasks.append(task)
+        print(f'+++ {len(empty_stock_tasks)} empty stock tasks ++++')
+
         await asyncio.gather(*empty_stock_tasks)
 
+        print('+++++ Start parse item error +++++')
         reparse_count = 0
 
         while os.path.exists('compare_error.txt') and reparse_count < 7:
@@ -119,8 +131,8 @@ async def get_gather_data():
             new_tasks = [asyncio.create_task(get_item_data(session, i)) for i in reparse_item]
             await asyncio.gather(*new_tasks)
 
+        print('+++++ Start parse category stock +++++')
         reparse_count = 0
-
         while os.path.exists('cat_error.txt') and reparse_count < 7:
             await asyncio.sleep(300)
             with open('cat_error.txt', encoding='utf-8') as file:
@@ -133,10 +145,9 @@ async def get_gather_data():
 
 def main():
     asyncio.run(get_gather_data())
-
     df_one = pd.DataFrame().from_dict(sample, orient='index')
     df_one.index.name = 'article'
-    df_one.to_excel('test_test.xlsx')
+    df_one.to_excel('gv_result.xlsx')
 
 
 if __name__ == "__main__":
