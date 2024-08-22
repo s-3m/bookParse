@@ -133,6 +133,7 @@ async def get_gather_data():
 
         print('+++++ Start parse category stock +++++')
         reparse_count = 0
+
         while os.path.exists('cat_error.txt') and reparse_count < 7:
             await asyncio.sleep(300)
             with open('cat_error.txt', encoding='utf-8') as file:
