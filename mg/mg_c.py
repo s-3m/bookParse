@@ -95,6 +95,7 @@ async def check_empty_stock(session, item):
     except Exception as e:
         with open('check_empty_error.txt', 'a+') as f:
             f.write(f'{item} --- {item_id} --- {e}')
+            sample[item]['stock'] = 'del'
 
 
 
