@@ -87,14 +87,15 @@ async def check_empty_stock(session, item):
         if not item_id:
             item_id = await get_item_id(session, item)
         if item_id and item_id != '#':
-            sample[item]['id'] = item_id
             link = f'/tovar/{item_id}'
             await get_item_data(session, link)
+            sample[item]['id'] = item_id
         else:
             sample[item]['stock'] = 'del'
     except Exception as e:
         with open('check_empty_error.txt', 'a+') as f:
             f.write(f'{item} --- {item_id} --- {e}')
+            sample[item]['stock'] = 'del'
 
 
 
