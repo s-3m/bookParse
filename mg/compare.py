@@ -8,7 +8,6 @@ import aiohttp
 import asyncio
 import pandas as pd
 
-from moscow import compare
 
 pandas.io.formats.excel.ExcelFormatter.header_style = None
 
