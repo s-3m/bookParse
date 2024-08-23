@@ -7,8 +7,7 @@ from fake_useragent import UserAgent
 import aiohttp
 import asyncio
 import pandas as pd
-
-from moscow import compare
+from email_me import send_email
 
 pandas.io.formats.excel.ExcelFormatter.header_style = None
 
@@ -85,6 +84,8 @@ def main():
     df_result.to_excel('compare/gv_result.xlsx', index=False)
     df_without_del = df_result.loc[df_result['stock'] != 'del']
     df_without_del.to_excel('compare/not_del.xlsx', index=False)
+    time.sleep(10)
+    send_email()
 
 
 def super_main():
