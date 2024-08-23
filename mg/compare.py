@@ -1,7 +1,6 @@
 import os.path
 import time
-from pprint import pprint
-
+import schedule
 import pandas.io.formats.excel
 from bs4 import BeautifulSoup as bs
 from fake_useragent import UserAgent
@@ -9,7 +8,10 @@ import aiohttp
 import asyncio
 import pandas as pd
 
+from moscow import compare
+
 pandas.io.formats.excel.ExcelFormatter.header_style = None
+
 
 BASE_URL = "https://www.dkmg.ru"
 USER_AGENT = UserAgent()
@@ -23,7 +25,7 @@ ajax_headers = {
     'X-Requested-With': 'XMLHttpRequest',
 }
 
-df = pd.read_excel('gv_result.xlsx', converters={'id': str})
+df = pd.read_excel('gv_result/not_del.xlsx', converters={'id': str})
 df = df.where(df.notnull(), None)
 sample = df.to_dict('records')
 count = 1
@@ -31,78 +33,69 @@ count = 1
 
 async def get_item_data(session, item):
     global count
-    url = f"{BASE_URL}/tovar/{item['id']}"
-    async with session.get(url, headers=headers) as response:
-        soup = bs(await response.text(), 'lxml')
-        buy_btn = soup.find('a', class_='btn_red wish_list_btn add_to_cart')
-        if buy_btn:
-            item['stock'] = 2
-        else:
-            item['stock'] = 'del'
-        print(f'\r{count}', end='')
-        count += 1
+    item_id = item['id']
+    url = f"{BASE_URL}/tovar/{item_id}"
+    try:
+        async with session.get(url, headers=headers) as response:
+            soup = bs(await response.text(), 'lxml')
+            buy_btn = soup.find('a', class_='btn_red wish_list_btn add_to_cart')
+            if not buy_btn:
+                item['stock'] = 'del'
 
-
-async def to_check_id(session, item):
-    if not item['id']:
-        isbn = item['article'][:-2]
-        await asyncio.sleep(20)
-        # try:
-        async with session.get(
-                f'https://www.dkmg.ru/ajax/ajax_search.php?term={isbn}&Catalog_ID=0&Series_ID=&Publisher_ID=&Year_Biblio=',
-                headers=ajax_headers) as response:
-            await asyncio.sleep(20)
-            resp = await response.json(content_type='text/html', encoding='utf-8')
-            item_id = resp[0]['value'].split('/')[-1].strip()
-            item['id'] = item_id
-        # except:
-        #     item['stock'] = 'check to del'
-        #     flag = True
-        #     return
-    # try:
-    await get_item_data(session, item)
-    # except TimeoutError:
-    #     item['stock'] = 'check to del'
-    #     flag = True
+            print(f'\r{count}', end='')
+            count += 1
+    except Exception as e:
+        if not os.path.exists('./compare/'):
+            os.makedirs('./compare/')
+        with open('./compare/error.txt', 'a+') as file:
+            file.write(f'{item_id} ----- {e}\n')
 
 
 async def get_gather_data():
-    # flag = False
-    # loop = 1
-    # while True:
-    #     if not flag:
-    #         if loop > 1:
-    #             break
-    #         loop += 1
         tasks = []
         async with (aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False, limit_per_host=10, limit=50),
                                           timeout=aiohttp.ClientTimeout(total=None)) as session):
             for item in sample:
-                task = asyncio.create_task(to_check_id(session, item))
+                task = asyncio.create_task(get_item_data(session, item))
                 tasks.append(task)
 
             await asyncio.gather(*tasks)
-        # else:
-        #     flag = False
-        #     await asyncio.sleep(300)
-        #     tasks = []
-        #     async with (aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False, limit_per_host=10, limit=50),
-        #                                       timeout=aiohttp.ClientTimeout(total=None)) as session):
-        #         for item in sample:
-        #             if item['stock'] == 'check to del':
-        #                 task = asyncio.create_task(to_check_id(session, item, flag))
-        #                 tasks.append(task)
-        #         await asyncio.gather(*tasks)
+
+            reparse_count = 0
+            while os.path.exists('./compare/error.txt') and reparse_count < 10:
+                reparse_count += 1
+                with open('./compare/error.txt') as file:
+                    id_list = [{'id': i.split(' ----- ')[0]} for i in file.readlines()]
+                    os.remove('./compare/error.txt')
+
+                reparse_tasks = []
+
+                for item in id_list:
+                    task = asyncio.create_task(get_item_data(session, item))
+                    reparse_tasks.append(task)
+
+                await asyncio.gather(*reparse_tasks)
+
+
 
 
 def main():
     asyncio.run(get_gather_data())
     df_result = pd.DataFrame(sample)
-    df_result.to_excel('gv_result.xlsx', index=False)
+    df_result.to_excel('gv_result/gv_result.xlsx', index=False)
+    df_without_del = df_result.loc[df_result['stock'] != 'del']
+    df_without_del.to_excel('gv_result/not_del.xlsx', index=False)
+
+
+def super_main():
+    schedule.every().day.at('04:00').do(main)
+
+    while True:
+        schedule.run_pending()
 
 
 if __name__ == '__main__':
     start_time = time.time()
-    main()
+    super_main()
     print()
     print(time.time() - start_time)
