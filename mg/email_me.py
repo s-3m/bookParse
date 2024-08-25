@@ -6,7 +6,7 @@ from email.mime.multipart import MIMEMultipart
 
 def send_email():
 
-    print('Start')
+    print('\nStart')
     sender = 's-3m@yandex.ru'
     password = 'aplxoqrzhjashimq'
 
@@ -21,12 +21,14 @@ def send_email():
     msg["To"] = sender
     msg["Subject"] = "Parse result (gvardia)"
 
-    with open('compare/gv_result.xlsx', 'rb') as f:
-        file_stock = MIMEApplication(f.read(), 'xlsx')
+    with open('compare/gvardia_del.xlsx', 'rb') as f:
+        file_del = MIMEApplication(f.read(), 'xlsx')
 
-    file_stock.add_header('content-disposition', 'attachment', filename='gvardia_result.xlsx')
-    msg.attach(file_stock)
+    file_del.add_header('content-disposition', 'attachment', filename='gvardia_del.xlsx')
+    msg.attach(file_del)
     time.sleep(30)
+
     print('sending...')
     server.sendmail(sender, sender, msg.as_string())
     print('Success')
+    server.close()

@@ -11,7 +11,6 @@ from email_me import send_email
 
 pandas.io.formats.excel.ExcelFormatter.header_style = None
 
-
 BASE_URL = "https://www.dkmg.ru"
 USER_AGENT = UserAgent()
 headers = {
@@ -24,7 +23,7 @@ ajax_headers = {
     'X-Requested-With': 'XMLHttpRequest',
 }
 
-df = pd.read_excel('compare/not_del.xlsx', converters={'id': str})
+df = pd.read_excel('compare/gvardia_new_stock.xlsx', converters={'id': str})
 df = df.where(df.notnull(), None)
 sample = df.to_dict('records')
 count = 1
@@ -40,6 +39,8 @@ async def get_item_data(session, item):
             buy_btn = soup.find('a', class_='btn_red wish_list_btn add_to_cart')
             if not buy_btn:
                 item['stock'] = 'del'
+            else:
+                item['stock'] = '2'
 
             print(f'\r{count}', end='')
             count += 1
@@ -51,39 +52,41 @@ async def get_item_data(session, item):
 
 
 async def get_gather_data():
-        tasks = []
-        async with (aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False, limit_per_host=10, limit=50),
-                                          timeout=aiohttp.ClientTimeout(total=None)) as session):
-            for item in sample:
+
+    tasks = []
+    async with (aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False, limit_per_host=10, limit=50),
+                                      timeout=aiohttp.ClientTimeout(total=None)) as session):
+        for item in sample:
+            task = asyncio.create_task(get_item_data(session, item))
+            tasks.append(task)
+
+        await asyncio.gather(*tasks)
+
+        reparse_count = 0
+        while os.path.exists('./compare/error.txt') and reparse_count < 10:
+            reparse_count += 1
+            with open('./compare/error.txt') as file:
+                id_list = [{'id': i.split(' ----- ')[0]} for i in file.readlines()]
+                os.remove('./compare/error.txt')
+
+            reparse_tasks = []
+
+            for item in id_list:
                 task = asyncio.create_task(get_item_data(session, item))
-                tasks.append(task)
+                reparse_tasks.append(task)
 
-            await asyncio.gather(*tasks)
-
-            reparse_count = 0
-            while os.path.exists('./compare/error.txt') and reparse_count < 10:
-                reparse_count += 1
-                with open('./compare/error.txt') as file:
-                    id_list = [{'id': i.split(' ----- ')[0]} for i in file.readlines()]
-                    os.remove('./compare/error.txt')
-
-                reparse_tasks = []
-
-                for item in id_list:
-                    task = asyncio.create_task(get_item_data(session, item))
-                    reparse_tasks.append(task)
-
-                await asyncio.gather(*reparse_tasks)
-
-
+            await asyncio.gather(*reparse_tasks)
+            global count
+            count = 1
 
 
 def main():
     asyncio.run(get_gather_data())
     df_result = pd.DataFrame(sample)
-    df_result.to_excel('compare/gv_result.xlsx', index=False)
+    df_del = df_result.loc[df_result['stock'] == 'del'][['article']]
+    df_del.to_excel('compare/gvardia_del.xlsx', index=False)
     df_without_del = df_result.loc[df_result['stock'] != 'del']
-    df_without_del.to_excel('compare/not_del.xlsx', index=False)
+    df_without_del.to_excel('compare/gvardia_new_stock.xlsx', index=False)
     time.sleep(10)
     send_email()
 

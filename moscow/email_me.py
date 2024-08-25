@@ -33,3 +33,4 @@ def send_email():
     print('sending...')
     server.sendmail(sender, sender, msg.as_string())
     print('Success')
+    server.close()
