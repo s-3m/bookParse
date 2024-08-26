@@ -73,9 +73,11 @@ async def get_item_data(session, link, main_category):
                 except:
                     item_data["Цена"] = 'Цена не указана'
 
-                item_id = soup.find('a', class_='btn_red wish_list_btn add_to_cart')['data-tovar']
+                item_id = soup.find('a', class_='btn_red wish_list_btn add_to_cart')
                 if not item_id:
                     item_id = ''
+                else:
+                    item_id = item_id['data-tovar']
                 item_data['id'] = item_id
                 try:
                     quantity = soup.find("div", class_="wish_list_poz").text.strip()

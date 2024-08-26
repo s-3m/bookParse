@@ -31,122 +31,131 @@ id_to_del = []
 
 semaphore = asyncio.Semaphore(10)
 
-
+count = 1
 async def get_item_data(session, link, main_category=None):
+    global count
+    if not link.startswith('https'):
+        link = BASE_URL + link
     global semaphore
-    try:
-        item_data = {}
-        async with semaphore:
-            async with session.get(link, headers=headers) as response:
-                soup = bs(await response.text(), "lxml")
+    # try:
+    item_data = {}
+    async with semaphore:
+        async with session.get(link, headers=headers) as response:
+            soup = bs(await response.text(), "lxml")
 
-                if not main_category:
-                    main_category = soup.find('div', class_='way').find_all('a')[2].text.strip()
-                item_data["Категория"] = main_category
+            if not main_category:
+                main_category = soup.find('div', class_='way').find_all('a')[2].text.strip()
+            item_data["Категория"] = main_category
 
+            try:
+                title = soup.find("h1").text.strip()
+                item_data["Названия"] = title
+            except:
+                item_data["Названия"] = 'Нет названия'
+            try:
+                options = soup.find('div', class_="item_basket_cont").find_all("tr")
+                for option in options:
+                    item_data[option.find_all("td")[0].text.strip()] = option.find_all("td")[1].text.strip()
+                    if option.find_all("td")[0].text.strip() == "ISBN:":
+                        isbn = option.find_all("td")[1].text.strip()
                 try:
-                    title = soup.find("h1").text.strip()
-                    item_data["Названия"] = title
-                except:
-                    item_data["Названия"] = 'Нет названия'
-                try:
-                    options = soup.find('div', class_="item_basket_cont").find_all("tr")
-                    for option in options:
+                    additional_options = soup.find('div', class_="additional_information").find_all('tr')
+                    for option in additional_options:
                         item_data[option.find_all("td")[0].text.strip()] = option.find_all("td")[1].text.strip()
-                        if option.find_all("td")[0].text.strip() == "ISBN:":
-                            isbn = option.find_all("td")[1].text.strip()
-                    try:
-                        additional_options = soup.find('div', class_="additional_information").find_all('tr')
-                        for option in additional_options:
-                            item_data[option.find_all("td")[0].text.strip()] = option.find_all("td")[1].text.strip()
-                    except:
-                        pass
                 except:
-                    item_data["Характеристика"] = 'Характиристики не указаны'
-                try:
-                    info = soup.find("div", class_='content_sm_2').find('h4')
-                    if info.text.strip() == 'Аннотация':
-                        info = info.find_next().text.strip()
-                    else:
-                        info = 'Описание отсутствует'
-                    item_data["Описание"] = info
-                except:
-                    item_data["Описание"] = 'Описание отсутствует'
-                try:
-                    price = soup.find_all("div", class_="product_item_price")[1].text.strip().split('.')[0]
-                    item_data["Цена"] = price
-                except:
-                    item_data["Цена"] = 'Цена не указана'
+                    pass
+            except:
+                item_data["Характеристика"] = 'Характиристики не указаны'
+            try:
+                info = soup.find("div", class_='content_sm_2').find('h4')
+                if info.text.strip() == 'Аннотация':
+                    info = info.find_next().text.strip()
+                else:
+                    info = 'Описание отсутствует'
+                item_data["Описание"] = info
+            except:
+                item_data["Описание"] = 'Описание отсутствует'
+            try:
+                price = soup.find_all("div", class_="product_item_price")[1].text.strip().split('.')[0]
+                item_data["Цена"] = price
+            except:
+                item_data["Цена"] = 'Цена не указана'
 
-                item_id = soup.find('a', class_='btn_red wish_list_btn add_to_cart')['data-tovar']
-                if not item_id:
-                    item_id = ''
-                item_data['id'] = item_id
-                try:
-                    quantity = soup.find("div", class_="wish_list_poz").text.strip()
-                    item_data["Наличие"] = quantity
-                except:
-                    item_data["Наличие"] = 'Наличие не указано'
-                try:
-                    photo = soup.find("a", class_="highslide")['href']
-                    item_data["Фото"] = BASE_URL + photo
-                except:
-                    item_data["Фото"] = 'Нет изображения'
+            item_id = soup.find('a', class_='btn_red wish_list_btn add_to_cart')
+            if item_id:
+                item_id = item_id['data-tovar']
+            if not item_id:
+                item_id = ''
+            item_data['id'] = item_id
+            try:
+                quantity = soup.find("div", class_="wish_list_poz").text.strip()
+                item_data["Наличие"] = quantity
+            except:
+                item_data["Наличие"] = 'Наличие не указано'
+            try:
+                photo = soup.find("a", class_="highslide")['href']
+                item_data["Фото"] = BASE_URL + photo
+            except:
+                item_data["Фото"] = 'Нет изображения'
 
-                if isbn + '.0' in not_in_sale:
-                    not_in_sale[isbn + '.0']['В продаже'] = 'да'
-                elif isbn + '.0' not in sample and quantity == 'есть в наличии':
-                    id_to_add.append(item_data)
-                elif isbn + '.0' in sample and quantity != 'есть в наличии':
-                    id_to_del.append({'Артикул': f'{isbn}.0'})
+            if isbn + '.0' in not_in_sale:
+                not_in_sale[isbn + '.0']['В продаже'] = 'да'
+            elif isbn + '.0' not in sample and quantity == 'есть в наличии':
+                id_to_add.append(item_data)
+            elif isbn + '.0' in sample and quantity != 'есть в наличии':
+                id_to_del.append({'Артикул': f'{isbn}.0'})
 
-                if isbn + '.0' in df_price_one:
-                    df_price_one[isbn + '.0']['Цена'] = price
-                if isbn + '.0' in df_price_two:
-                    df_price_two[isbn + '.0']['Цена'] = price
-                if isbn + '.0' in df_price_three:
-                    df_price_three[isbn + '.0']['Цена'] = price
-                result.append(item_data)
-    except Exception as e:
-        with open('error.txt', 'a+', encoding='utf-8') as f:
-            f.write(f'{link} ----- {e}\n')
+            if isbn + '.0' in df_price_one:
+                df_price_one[isbn + '.0']['Цена'] = price
+            if isbn + '.0' in df_price_two:
+                df_price_two[isbn + '.0']['Цена'] = price
+            if isbn + '.0' in df_price_three:
+                df_price_three[isbn + '.0']['Цена'] = price
+            result.append(item_data)
+            print(f'\r{count}', end='')
+            count += 1
+    # except Exception as e:
+    #     with open('error.txt', 'a+', encoding='utf-8') as f:
+    #         f.write(f'{link} ----- {e}\n')
 
 
 async def get_gather_data():
-    tasks = []
-    with open('cat_error.txt', 'r', encoding='utf-8') as f:
-        cat_list = [item.split(' ----- ')[0] for item in f.readlines()]
-    os.remove('cat_error.txt')
+    # tasks = []
+    # with open('cat_error.txt', 'r', encoding='utf-8') as f:
+    #     cat_list = [item.split(' ----- ')[0] for item in f.readlines()]
+    # os.remove('cat_error.txt')
     async with (aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False)) as session):
-
-        for cat_link in cat_list:
-            try:
-                response = await session.get(cat_link, headers=headers)
-                response_text = await response.text()
-                soup = bs(response_text, 'lxml')
-                pagin_max = int(soup.find("div", class_="navitem").find_all("a")[-2]['href'].split('=')[-1])
-                main_category = soup.find("h1").text.split(' (')[0]
-                print(f'\n---Делаю категорию - {main_category}---')
-
-                for page_numb in range(1, pagin_max + 1):
-                    print(f'----------------стр - {page_numb} из {pagin_max}-----------')
-                    response = await session.get(f'{cat_link}?page={page_numb}')
-                    await asyncio.sleep(5)
-                    response_text = await response.text()
-                    soup = bs(response_text, 'lxml')
-                    items_on_page = soup.find_all('div', class_='product_img')
-                    items_links = [item.find('a')['href'] for item in items_on_page]
-                    for link in items_links:
-                        task = asyncio.create_task(get_item_data(session, link, main_category))
-                        tasks.append(task)
-            except Exception as e:
-                with open('cat_error.txt', 'a+') as f:
-                    f.write(f'{cat_link} ----- {e}\n')
-                    continue
-        await asyncio.gather(*tasks)
+    #
+    #     for cat_link in cat_list:
+    #         try:
+    #             response = await session.get(cat_link, headers=headers)
+    #             response_text = await response.text()
+    #             soup = bs(response_text, 'lxml')
+    #             pagin_max = int(soup.find("div", class_="navitem").find_all("a")[-2]['href'].split('=')[-1])
+    #             main_category = soup.find("h1").text.split(' (')[0]
+    #             print(f'\n---Делаю категорию - {main_category}---')
+    #
+    #             for page_numb in range(1, pagin_max + 1):
+    #                 print(f'----------------стр - {page_numb} из {pagin_max}-----------')
+    #                 response = await session.get(f'{cat_link}?page={page_numb}')
+    #                 await asyncio.sleep(5)
+    #                 response_text = await response.text()
+    #                 soup = bs(response_text, 'lxml')
+    #                 items_on_page = soup.find_all('div', class_='product_img')
+    #                 items_links = [item.find('a')['href'] for item in items_on_page]
+    #                 for link in items_links:
+    #                     task = asyncio.create_task(get_item_data(session, link, main_category))
+    #                     tasks.append(task)
+    #         except Exception as e:
+    #             with open('cat_error.txt', 'a+') as f:
+    #                 f.write(f'{cat_link} ----- {e}\n')
+    #                 continue
+    #     await asyncio.gather(*tasks)
 
         with open('error.txt') as file:
             item_links = [item.split(' ----- ')[0] for item in file.readlines()]
+        print(len(item_links))
+        print('----------------------------')
         os.remove('error.txt')
         reparse_tasks = []
         for link in item_links:
