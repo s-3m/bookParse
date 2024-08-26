@@ -17,9 +17,9 @@ headers = {
     "user-agent": USER_AGENT.random
 }
 
-df_price_one = pd.read_excel("price1.xlsx").set_index('Артикул').to_dict('index')
-df_price_two = pd.read_excel("price2.xlsx").set_index('Артикул').to_dict('index')
-df_price_three = pd.read_excel("price3.xlsx").set_index('Артикул').to_dict('index')
+df_price_one = pd.read_excel("one.xlsx").set_index('Артикул').to_dict('index')
+df_price_two = pd.read_excel("two.xlsx").set_index('Артикул').to_dict('index')
+df_price_three = pd.read_excel("three.xlsx").set_index('Артикул').to_dict('index')
 sample = pd.read_excel("abc.xlsx", converters={"Артикул": str}).set_index('Артикул').to_dict('index')
 
 result = []
@@ -62,6 +62,11 @@ async def get_item_data(session, link, main_category):
                 item_data["Цена"] = price
             except:
                 item_data["Цена"] = 'Цена не указана'
+
+            item_id = soup.find('a', class_='btn_red wish_list_btn add_to_cart')['data-tovar']
+            if not item_id:
+                item_id = ''
+            item_data['id'] = item_id
             try:
                 quantity = soup.find("div", class_="wish_list_poz").text.strip()
                 item_data["Наличие"] = quantity
@@ -73,9 +78,9 @@ async def get_item_data(session, link, main_category):
             except:
                 item_data["Фото"] = 'Нет изображения'
 
-            if isbn not in sample and quantity == 'есть в наличии':
+            if isbn + '.0' not in sample and quantity == 'есть в наличии':
                 id_to_add.append(item_data)
-            elif isbn in sample and quantity != 'есть в наличии':
+            elif isbn + '.0' in sample and quantity != 'есть в наличии':
                 id_to_del.append({'Артикул': f'{isbn}.0'})
             if isbn + '.0' in df_price_one:
                 df_price_one[isbn + '.0']['Цена'] = price
