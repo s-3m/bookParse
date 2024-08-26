@@ -1,3 +1,4 @@
+import os
 import time
 
 import pandas.io.formats.excel
@@ -31,14 +32,18 @@ id_to_del = []
 semaphore = asyncio.Semaphore(10)
 
 
-async def get_item_data(session, link, main_category):
+async def get_item_data(session, link, main_category=None):
     global semaphore
     try:
         item_data = {}
         async with semaphore:
-            async with session.get(BASE_URL + link, headers=headers) as response:
+            async with session.get(link, headers=headers) as response:
                 soup = bs(await response.text(), "lxml")
+
+                if not main_category:
+                    main_category = soup.find('div', class_='way').find_all('a')[2].text.strip()
                 item_data["Категория"] = main_category
+
                 try:
                     title = soup.find("h1").text.strip()
                     item_data["Названия"] = title
@@ -104,21 +109,19 @@ async def get_item_data(session, link, main_category):
                 result.append(item_data)
     except Exception as e:
         with open('error.txt', 'a+', encoding='utf-8') as f:
-            f.write(f'{BASE_URL}{link} ----- {e}\n')
+            f.write(f'{link} ----- {e}\n')
 
 
 async def get_gather_data():
     tasks = []
+    with open('cat_error.txt', 'r', encoding='utf-8') as f:
+        cat_list = [item.split(' ----- ')[0] for item in f.readlines()]
+    os.remove('cat_error.txt')
     async with (aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False)) as session):
-        response = await session.get(BASE_URL, headers=headers)
-        response_text = await response.text()
-        soup = bs(response_text, "lxml")
-        cat_list = soup.find_all("h4")
-        cat_list = [item.find('a')['href'] for item in cat_list[:8]]
 
         for cat_link in cat_list:
             try:
-                response = await session.get(BASE_URL + cat_link, headers=headers)
+                response = await session.get(cat_link, headers=headers)
                 response_text = await response.text()
                 soup = bs(response_text, 'lxml')
                 pagin_max = int(soup.find("div", class_="navitem").find_all("a")[-2]['href'].split('=')[-1])
@@ -127,7 +130,7 @@ async def get_gather_data():
 
                 for page_numb in range(1, pagin_max + 1):
                     print(f'----------------стр - {page_numb} из {pagin_max}-----------')
-                    response = await session.get(f'{BASE_URL}{cat_link}?page={page_numb}')
+                    response = await session.get(f'{cat_link}?page={page_numb}')
                     await asyncio.sleep(5)
                     response_text = await response.text()
                     soup = bs(response_text, 'lxml')
@@ -138,9 +141,18 @@ async def get_gather_data():
                         tasks.append(task)
             except Exception as e:
                 with open('cat_error.txt', 'a+') as f:
-                    f.write(f'{BASE_URL}{cat_link} ----- {e}\n')
+                    f.write(f'{cat_link} ----- {e}\n')
                     continue
         await asyncio.gather(*tasks)
+
+        with open('error.txt') as file:
+            item_links = [item.split(' ----- ')[0] for item in file.readlines()]
+        os.remove('error.txt')
+        reparse_tasks = []
+        for link in item_links:
+            task = asyncio.create_task(get_item_data(session, link))
+            reparse_tasks.append(task)
+        await asyncio.gather(*reparse_tasks)
 
 
 def main():
