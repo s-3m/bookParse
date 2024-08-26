@@ -147,7 +147,7 @@ async def get_gather_data():
         all_lang = soup.find("div", class_="catalog_section_list").find_all('li')
         all_lang = [i.find('a')['href'] for i in all_lang]
 
-        for lang in all_lang[:3]:
+        for lang in all_lang:
             try:
                 response = await session.get(f'{BASE_URL}{lang}', headers=headers)
                 soup = bs(await response.text(), "lxml")
@@ -159,7 +159,7 @@ async def get_gather_data():
 
         tasks = []
 
-        for link in all_need_links[:2]:
+        for link in all_need_links:
             response = await session.get(f'{BASE_URL}{link}', headers=headers)
             await asyncio.sleep(20)
             soup = bs(await response.text(), "lxml")
@@ -169,7 +169,7 @@ async def get_gather_data():
                 pagination = int(pagination.find_all('a')[-1].text.strip())
             else:
                 pagination = 1
-            pagination = 4
+            # pagination = 4
             for page in range(1, pagination + 1):
                 await asyncio.sleep(5)
 
@@ -202,29 +202,29 @@ def main():
     asyncio.run(get_gather_data())
 
     df = pd.DataFrame(result)
-    df.to_excel('all_result.xlsx', index=False)
+    df.to_excel('result/all_result.xlsx', index=False)
 
     df_one = pd.DataFrame().from_dict(df_price_one, orient='index')
     df_one.index.name = 'Артикул'
-    df_one.to_excel('price_one.xlsx', index=True)
+    df_one.to_excel('result/price_one.xlsx', index=True)
 
     df_two = pd.DataFrame().from_dict(df_price_two, orient='index')
     df_two.index.name = 'Артикул'
-    df_two.to_excel('price_two.xlsx')
+    df_two.to_excel('result/price_two.xlsx')
 
     df_three = pd.DataFrame().from_dict(df_price_three, orient='index')
     df_three.index.name = 'Артикул'
-    df_three.to_excel('price_three.xlsx')
+    df_three.to_excel('result/price_three.xlsx')
 
     df_not_in_sale = pd.DataFrame().from_dict(not_in_sale, orient='index')
     df_not_in_sale.index.name = 'Артикул'
-    df_not_in_sale.to_excel('not_in_sale.xlsx')
+    df_not_in_sale.to_excel('result/not_in_sale.xlsx')
 
     df_add = pd.DataFrame(id_to_add)
-    df_add.to_excel("add.xlsx", index=False)
+    df_add.to_excel("result/add.xlsx", index=False)
 
     df_del = pd.DataFrame(id_to_del)
-    df_del.to_excel("del.xlsx", index=False)
+    df_del.to_excel("result/del.xlsx", index=False)
 
 
 if __name__ == "__main__":
