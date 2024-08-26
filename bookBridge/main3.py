@@ -191,10 +191,11 @@ async def get_gather_data():
         while os.path.exists('error_log.txt') and reparse_count < 7:
             with open('error_log.txt', encoding='utf-8') as file:
                 reparse_items = file.readlines()
-                os.remove('error_log.txt')
+            os.remove('error_log.txt')
             for item in reparse_items:
                 task = asyncio.create_task(get_item_data(item, session))
                 reparse_tasks.append(task)
+            await asyncio.gather(*reparse_tasks)
 
 
 def main():
