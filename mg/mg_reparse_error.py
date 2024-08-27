@@ -84,8 +84,7 @@ async def get_item_data(session, link, main_category=None):
             item_id = soup.find('a', class_='btn_red wish_list_btn add_to_cart')
             if item_id:
                 item_id = item_id['data-tovar']
-            if not item_id:
-                item_id = ''
+
             item_data['id'] = item_id
             try:
                 quantity = soup.find("div", class_="wish_list_poz").text.strip()
