@@ -29,7 +29,7 @@ sample = df.to_dict('records')
 count = 1
 
 
-async def get_item_data(session, item):
+async def get_item_data(session, item, reparse=False):
     global count
     item_id = item['id']
     url = f"{BASE_URL}/tovar/{item_id}"
@@ -42,13 +42,16 @@ async def get_item_data(session, item):
             else:
                 item['stock'] = '2'
 
+            if reparse:
+                sample.append(item)
+
             print(f'\r{count}', end='')
             count += 1
     except Exception as e:
         if not os.path.exists('./compare/'):
             os.makedirs('./compare/')
         with open('./compare/error.txt', 'a+') as file:
-            file.write(f'{item_id} ----- {e}\n')
+            file.write(f'{item_id} --- {item['article']} --- {e}\n')
 
 
 async def get_gather_data():
@@ -64,18 +67,21 @@ async def get_gather_data():
 
         reparse_count = 0
         while os.path.exists('./compare/error.txt') and reparse_count < 10:
+            print('\n------- Start reparse error ------')
             reparse_count += 1
             with open('./compare/error.txt') as file:
-                id_list = [{'id': i.split(' ----- ')[0]} for i in file.readlines()]
+                id_list = [{'id': i.split(' --- ')[0], 'article': i.split(' --- ')[1]} for i in file.readlines()]
+                print(f'--- Quantity error - {len(id_list)}')
                 os.remove('./compare/error.txt')
 
             reparse_tasks = []
 
             for item in id_list:
-                task = asyncio.create_task(get_item_data(session, item))
+                task = asyncio.create_task(get_item_data(session, item, reparse=True))
                 reparse_tasks.append(task)
 
             await asyncio.gather(*reparse_tasks)
+
             global count
             count = 1
 
@@ -83,6 +89,7 @@ async def get_gather_data():
 def main():
     asyncio.run(get_gather_data())
     df_result = pd.DataFrame(sample)
+    df.drop_duplicates(inplace=True, keep='last', subset='article')
     df_del = df_result.loc[df_result['stock'] == 'del'][['article']]
     df_del.to_excel('compare/gvardia_del.xlsx', index=False)
     df_without_del = df_result.loc[df_result['stock'] != 'del']
