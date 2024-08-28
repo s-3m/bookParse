@@ -17,12 +17,8 @@ headers = {
     "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
     "user-agent": USER_AGENT.random
 }
-ajax_headers = {
-    "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
-    "user-agent": USER_AGENT.random,
-    'X-Requested-With': 'XMLHttpRequest',
-}
 
+semaphore = asyncio.Semaphore(2)
 df = pd.read_excel('compare/gvardia_new_stock.xlsx', converters={'id': str})
 df = df.where(df.notnull(), None)
 sample = df.to_dict('records')
@@ -32,21 +28,26 @@ count = 1
 async def get_item_data(session, item, reparse=False):
     global count
     item_id = item['id']
+    if not item_id:
+        item['stock'] = 'del'
+        return
     url = f"{BASE_URL}/tovar/{item_id}"
     try:
-        async with session.get(url, headers=headers) as response:
-            soup = bs(await response.text(), 'lxml')
-            buy_btn = soup.find('a', class_='btn_red wish_list_btn add_to_cart')
-            if not buy_btn:
-                item['stock'] = 'del'
-            else:
-                item['stock'] = '2'
+        async with semaphore:
+            await asyncio.sleep(0.5)
+            async with session.get(url, headers=headers) as response:
+                soup = bs(await response.text(), 'lxml')
+                buy_btn = soup.find('a', class_='btn_red wish_list_btn add_to_cart')
+                if not buy_btn:
+                    item['stock'] = 'del'
+                else:
+                    item['stock'] = '2'
 
-            if reparse:
-                sample.append(item)
+                if reparse:
+                    sample.append(item)
 
-            print(f'\r{count}', end='')
-            count += 1
+                print(f'\r{count}', end='')
+                count += 1
     except Exception as e:
         if not os.path.exists('./compare/'):
             os.makedirs('./compare/')
@@ -87,6 +88,7 @@ async def get_gather_data():
 
 
 def main():
+    print('start\n')
     asyncio.run(get_gather_data())
     df_result = pd.DataFrame(sample)
     df.drop_duplicates(inplace=True, keep='last', subset='article')
@@ -99,7 +101,7 @@ def main():
 
 
 def super_main():
-    schedule.every().day.at('04:00').do(main)
+    schedule.every().day.at('01:30').do(main)
 
     while True:
         schedule.run_pending()

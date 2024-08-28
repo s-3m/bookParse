@@ -24,8 +24,14 @@ def send_email():
     with open('compare/gvardia_del.xlsx', 'rb') as f:
         file_del = MIMEApplication(f.read(), 'xlsx')
 
+    with open('compare/gvardia_new_stock.xlsx', 'rb') as f:
+        file_new_stock = MIMEApplication(f.read(), 'xlsx')
+
     file_del.add_header('content-disposition', 'attachment', filename='gvardia_del.xlsx')
+    file_new_stock.add_header('content-disposition', 'attachment', filename='gvardia_new_stock.xlsx')
+
     msg.attach(file_del)
+    msg.attach(file_new_stock)
     time.sleep(30)
 
     print('sending...')
