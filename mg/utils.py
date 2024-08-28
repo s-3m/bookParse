@@ -14,16 +14,18 @@ semaphore = asyncio.Semaphore(10)
 async def get_item_id(session, item):
     global count_c
     global semaphore
-    isbn = item[:-2]
+    isbn = item['article'][:-2]
     await asyncio.sleep(2)
-    # try:
-    async with semaphore:
-        async with session.get(
-                f'https://www.dkmg.ru/ajax/ajax_search.php?term={isbn}&Catalog_ID=0&Series_ID=&Publisher_ID=&Year_Biblio=',
-                headers=ajax_headers) as response:
-            await asyncio.sleep(2)
-            resp = await response.json(content_type='text/html', encoding='utf-8-sig')
-            item_id = resp[0]['value'].split('/')[-1].strip()
-            print(f'\r{count_c}', end='')
-            count_c += 1
-        return item_id
+    try:
+        async with semaphore:
+            async with session.get(
+                    f'https://www.dkmg.ru/ajax/ajax_search.php?term={isbn}&Catalog_ID=0&Series_ID=&Publisher_ID=&Year_Biblio=',
+                    headers=ajax_headers) as response:
+                await asyncio.sleep(2)
+                resp = await response.json(content_type='text/html', encoding='utf-8-sig')
+                item_id = resp[0]['value'].split('/')[-1].strip()
+                print(f'\r{count_c}', end='')
+                count_c += 1
+            return item_id
+    except:
+        return None
