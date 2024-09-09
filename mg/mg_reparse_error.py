@@ -133,29 +133,29 @@ async def get_gather_data():
 def main():
     asyncio.run(get_gather_data())
     df = pd.DataFrame(result)
-    df.to_excel('result.xlsx', index=False)
+    df.to_excel('re_result.xlsx', index=False)
 
     df_add = pd.DataFrame(id_to_add)
-    df_add.to_excel('add.xlsx', index=False)
+    df_add.to_excel('re_add.xlsx', index=False)
 
     df_del = pd.DataFrame(id_to_del)
-    df_del.to_excel('del.xlsx', index=False)
+    df_del.to_excel('re_del.xlsx', index=False)
 
     df_one = pd.DataFrame().from_dict(df_price_one, orient='index')
     df_one.index.name = 'Артикул'
-    df_one.to_excel('price_one.xlsx')
+    df_one.to_excel('re_price_one.xlsx')
 
     df_two = pd.DataFrame().from_dict(df_price_two, orient='index')
     df_two.index.name = 'Артикул'
-    df_two.to_excel('price_two.xlsx')
+    df_two.to_excel('re_price_two.xlsx')
 
     df_three = pd.DataFrame().from_dict(df_price_three, orient='index')
     df_three.index.name = 'Артикул'
-    df_three.to_excel('price_three.xlsx')
+    df_three.to_excel('re_price_three.xlsx')
 
     df_not_in_sale = pd.DataFrame().from_dict(not_in_sale, orient='index')
     df_not_in_sale.index.name = 'Артикул'
-    df_not_in_sale.to_excel('not_in_sale.xlsx')
+    df_not_in_sale.to_excel('re_not_in_sale.xlsx')
 
 
 if __name__ == "__main__":
