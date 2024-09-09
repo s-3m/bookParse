@@ -8,8 +8,7 @@ import aiohttp
 import asyncio
 import pandas as pd
 from email_me import send_email
-from utils import get_item_id
-
+from .utils import get_item_id
 pandas.io.formats.excel.ExcelFormatter.header_style = None
 
 BASE_URL = "https://www.dkmg.ru"

@@ -28,7 +28,7 @@ result = []
 id_to_add = []
 id_to_del = []
 
-semaphore = asyncio.Semaphore(10)
+semaphore = asyncio.Semaphore(20)
 
 
 async def get_item_data(session, link, main_category):
@@ -90,9 +90,9 @@ async def get_item_data(session, link, main_category):
 
                 if isbn + '.0' in not_in_sale:
                     not_in_sale[isbn + '.0']['В продаже'] = 'да'
-                elif isbn + '.0' not in sample and quantity == 'есть в наличии':
+                if isbn + '.0' not in sample and quantity == 'есть в наличии':
                     id_to_add.append(item_data)
-                elif isbn + '.0' in sample and quantity != 'есть в наличии':
+                if isbn + '.0' in sample and quantity != 'есть в наличии':
                     id_to_del.append({'Артикул': f'{isbn}.0'})
 
                 if isbn + '.0' in df_price_one:
@@ -127,7 +127,7 @@ async def get_gather_data():
 
                 for page_numb in range(1, pagin_max + 1):
                     print(f'----------------стр - {page_numb} из {pagin_max}-----------')
-                    response = await session.get(f'{BASE_URL}{cat_link}?page={page_numb}')
+                    response = await session.get(f'{BASE_URL}{cat_link}?page={page_numb}&orderNew=asc')
                     await asyncio.sleep(5)
                     response_text = await response.text()
                     soup = bs(response_text, 'lxml')

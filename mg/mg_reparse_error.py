@@ -113,43 +113,10 @@ async def get_item_data(session, link, main_category=None):
             result.append(item_data)
             print(f'\r{count}', end='')
             count += 1
-    # except Exception as e:
-    #     with open('error.txt', 'a+', encoding='utf-8') as f:
-    #         f.write(f'{link} ----- {e}\n')
-
 
 async def get_gather_data():
-    # tasks = []
-    # with open('cat_error.txt', 'r', encoding='utf-8') as f:
-    #     cat_list = [item.split(' ----- ')[0] for item in f.readlines()]
-    # os.remove('cat_error.txt')
+
     async with (aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False)) as session):
-    #
-    #     for cat_link in cat_list:
-    #         try:
-    #             response = await session.get(cat_link, headers=headers)
-    #             response_text = await response.text()
-    #             soup = bs(response_text, 'lxml')
-    #             pagin_max = int(soup.find("div", class_="navitem").find_all("a")[-2]['href'].split('=')[-1])
-    #             main_category = soup.find("h1").text.split(' (')[0]
-    #             print(f'\n---Делаю категорию - {main_category}---')
-    #
-    #             for page_numb in range(1, pagin_max + 1):
-    #                 print(f'----------------стр - {page_numb} из {pagin_max}-----------')
-    #                 response = await session.get(f'{cat_link}?page={page_numb}')
-    #                 await asyncio.sleep(5)
-    #                 response_text = await response.text()
-    #                 soup = bs(response_text, 'lxml')
-    #                 items_on_page = soup.find_all('div', class_='product_img')
-    #                 items_links = [item.find('a')['href'] for item in items_on_page]
-    #                 for link in items_links:
-    #                     task = asyncio.create_task(get_item_data(session, link, main_category))
-    #                     tasks.append(task)
-    #         except Exception as e:
-    #             with open('cat_error.txt', 'a+') as f:
-    #                 f.write(f'{cat_link} ----- {e}\n')
-    #                 continue
-    #     await asyncio.gather(*tasks)
 
         with open('error.txt') as file:
             item_links = [item.split(' ----- ')[0] for item in file.readlines()]
