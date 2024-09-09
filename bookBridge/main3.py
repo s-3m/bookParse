@@ -173,16 +173,20 @@ async def get_gather_data():
             for page in range(1, pagination + 1):
                 await asyncio.sleep(5)
 
-                async with session.get(f'{BASE_URL}{link}?PAGEN_1={page}', headers=headers) as response:
-                    await asyncio.sleep(10)
-                    soup = bs(await response.text(), 'html.parser')
-                    page_items = soup.find_all('div', class_='item-title')
-                    items = [item.find('a')['href'] for item in page_items]
-                    main_category = soup.find('h1').text.strip()
+                try:
+                    async with session.get(f'{BASE_URL}{link}?PAGEN_1={page}', headers=headers) as response:
+                        await asyncio.sleep(10)
+                        soup = bs(await response.text(), 'html.parser')
+                        page_items = soup.find_all('div', class_='item-title')
+                        items = [item.find('a')['href'] for item in page_items]
+                        main_category = soup.find('h1').text.strip()
 
                     for item in items:
                         task = asyncio.create_task(get_item_data(item, session, main_category))
                         tasks.append(task)
+                except Exception as e:
+                    with open('page_error.txt', 'a+', encoding='utf-8') as file:
+                        file.write(f'{link} --- {page} --- {e}\n')
 
         await asyncio.gather(*tasks)
 
