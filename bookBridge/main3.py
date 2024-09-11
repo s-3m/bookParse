@@ -133,8 +133,10 @@ async def get_item_data(item, session, main_category=None):
             result.append(res_dict)
 
     except Exception as e:
-        with open('error_log.txt', 'a+', encoding='utf-8') as file:
-            file.write(f'{item}\n')
+        if item.strip():
+            with open('error_log.txt', 'a+', encoding='utf-8') as file:
+                file.write(f'{item}\n')
+        pass
 
 
 async def get_gather_data():
@@ -195,6 +197,7 @@ async def get_gather_data():
         while os.path.exists('error_log.txt') and reparse_count < 7:
             with open('error_log.txt', encoding='utf-8') as file:
                 reparse_items = file.readlines()
+                reparse_items = [i.strip() for i in reparse_items if i.strip()]
             os.remove('error_log.txt')
             for item in reparse_items:
                 task = asyncio.create_task(get_item_data(item, session))
