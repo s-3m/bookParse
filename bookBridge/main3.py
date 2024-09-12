@@ -52,90 +52,90 @@ async def get_item_data(item, session, main_category=None):
                     await asyncio.sleep(5)
                     soup = bs(await response.text(), 'html.parser')
 
-            if not main_category:
-                main_category = soup.find_all('span', class_='breadcrumbs__item-name font_xs')[1].text.strip()
+        if not main_category:
+            main_category = soup.find_all('span', class_='breadcrumbs__item-name font_xs')[1].text.strip()
 
+        try:
+            title = soup.find('h1').text
+            res_dict['Наименование'] = title.strip()
+        except:
+            title = "Нет названия"
+            res_dict['Наименование'] = title
+
+        try:
+            pattern = re.compile(r"setViewedProduct\((\d+, .+)'MIN_PRICE':([^'].+}),")
+            script = soup.find('script', string=pattern)
+            price = eval(pattern.search(script.text).group(2)).get('ROUND_VALUE_VAT')
+            res_dict['Цена'] = price
+        except:
+            price = 'Цена не указана'
+            res_dict['Цена'] = price
+
+        res_dict['Категория'] = main_category
+
+        try:
+            article = soup.find('div', class_='article').find_all('span')[1].text.strip()
+            res_dict['Артикул'] = article
+        except:
+            article = 'Нет артикула'
+            res_dict['Артикул'] = article
+
+        try:
+            photo_link = soup.find(class_="product-detail-gallery__picture")['data-src']
+            photo_path = BASE_URL + photo_link
+            res_dict['Ссылка на фото'] = photo_path
+        except:
+            res_dict['Ссылка на фото'] = 'Нет фото'
+
+        try:
+            quantity = soup.find(class_='shadowed-block').find(class_='item-stock').find(
+                class_='value').text.strip()
+            res_dict['Наличие'] = quantity
+        except:
+            quantity = 'Наличие не указано'
+            res_dict['Наличие'] = quantity
+
+        try:
+            desc = soup.find(class_='ordered-block desc').find(class_='content').text.strip()
+            res_dict['Описание'] = desc
+        except:
+            res_dict['Описание'] = 'Нет описания'
+
+        try:
+            all_chars = soup.find(class_='char_block').find('table').find_all('tr')
+            for i in all_chars:
+                char = i.find_all('td')
+                res_dict[char[0].text.strip()] = char[1].text.strip()
+        except:
             try:
-                title = soup.find('h1').text
-                res_dict['Наименование'] = title.strip()
-            except:
-                title = "Нет названия"
-                res_dict['Наименование'] = title
-
-            try:
-                pattern = re.compile(r"setViewedProduct\((\d+, .+)'MIN_PRICE':([^'].+}),")
-                script = soup.find('script', string=pattern)
-                price = eval(pattern.search(script.text).group(2)).get('ROUND_VALUE_VAT')
-                res_dict['Цена'] = price
-            except:
-                price = 'Цена не указана'
-                res_dict['Цена'] = price
-
-            res_dict['Категория'] = main_category
-
-            try:
-                article = soup.find('div', class_='article').find_all('span')[1].text.strip()
-                res_dict['Артикул'] = article
-            except:
-                article = 'Нет артикула'
-                res_dict['Артикул'] = article
-
-            try:
-                photo_link = soup.find(class_="product-detail-gallery__picture")['data-src']
-                photo_path = BASE_URL + photo_link
-                res_dict['Ссылка на фото'] = photo_path
-            except:
-                res_dict['Ссылка на фото'] = 'Нет фото'
-
-            try:
-                quantity = soup.find(class_='shadowed-block').find(class_='item-stock').find(
-                    class_='value').text.strip()
-                res_dict['Наличие'] = quantity
-            except:
-                quantity = 'Наличие не указано'
-                res_dict['Наличие'] = quantity
-
-            try:
-                desc = soup.find(class_='ordered-block desc').find(class_='content').text.strip()
-                res_dict['Описание'] = desc
-            except:
-                res_dict['Описание'] = 'Нет описания'
-
-            try:
-                all_chars = soup.find(class_='char_block').find('table').find_all('tr')
+                all_chars = soup.find(class_='product-chars').find_all(class_='properties__item')
                 for i in all_chars:
-                    char = i.find_all('td')
-                    res_dict[char[0].text.strip()] = char[1].text.strip()
+                    res_dict[i.find(class_='properties__title').text.strip()] = i.find(
+                        class_='properties__value').text.strip()
             except:
-                try:
-                    all_chars = soup.find(class_='product-chars').find_all(class_='properties__item')
-                    for i in all_chars:
-                        res_dict[i.find(class_='properties__title').text.strip()] = i.find(
-                            class_='properties__value').text.strip()
-                except:
-                    pass
+                pass
 
-            for d in [df_price_one, df_price_two, df_price_three]:
-                if article + '.0' in d:
-                    d[article + '.0']['Цена'] = price
-                    break
+        for d in [df_price_one, df_price_two, df_price_three]:
+            if article + '.0' in d:
+                d[article + '.0']['Цена'] = price
+                break
 
-            if article + '.0' in not_in_sale and quantity != 'Нет в наличии':
-                not_in_sale[article + '.0']['В продаже'] = 'Да'
-            elif article + '.0' not in sample and quantity != 'Нет в наличии':
-                res_dict['Артикул'] = article + '.0'
-                id_to_add.append(res_dict)
-            elif article + '.0' in sample and quantity == 'Нет в наличии':
-                id_to_del.append({"Артикул": article + '.0'})
+        if article + '.0' in not_in_sale and quantity != 'Нет в наличии':
+            not_in_sale[article + '.0']['В продаже'] = 'Да'
+        elif article + '.0' not in sample and quantity != 'Нет в наличии':
+            res_dict['Артикул'] = article + '.0'
+            id_to_add.append(res_dict)
+        elif article + '.0' in sample and quantity == 'Нет в наличии':
+            id_to_del.append({"Артикул": article + '.0'})
 
-            print(f'\r{count}', end='')
-            count = count + 1
-            result.append(res_dict)
+        print(f'\r{count}', end='')
+        count = count + 1
+        result.append(res_dict)
 
     except Exception as e:
         if item.strip():
             with open('error_log.txt', 'a+', encoding='utf-8') as file:
-                file.write(f'{item}\n')
+                file.write(f'{item} --- {e}\n')
         pass
 
 
@@ -163,7 +163,7 @@ async def get_gather_data():
 
         for link in all_need_links:
             response = await session.get(f'{BASE_URL}{link}', headers=headers)
-            await asyncio.sleep(20)
+            await asyncio.sleep(10)
             soup = bs(await response.text(), "lxml")
 
             pagination = soup.find("div", class_="nums")
@@ -171,7 +171,7 @@ async def get_gather_data():
                 pagination = int(pagination.find_all('a')[-1].text.strip())
             else:
                 pagination = 1
-            # pagination = 4
+            # pagination = 5
             for page in range(1, pagination + 1):
                 await asyncio.sleep(5)
 
@@ -192,12 +192,15 @@ async def get_gather_data():
 
         await asyncio.gather(*tasks)
 
+        print('--------------- Start parse error --------------')
+
         reparse_tasks = []
         reparse_count = 0
         while os.path.exists('error_log.txt') and reparse_count < 7:
             with open('error_log.txt', encoding='utf-8') as file:
                 reparse_items = file.readlines()
-                reparse_items = [i.strip() for i in reparse_items if i.strip()]
+                reparse_items = [i.split(" -")[0].strip() for i in reparse_items if i.strip()]
+            print(f'>>>>>>>> Total error reparse - {len(reparse_items)}')
             os.remove('error_log.txt')
             for item in reparse_items:
                 task = asyncio.create_task(get_item_data(item, session))
