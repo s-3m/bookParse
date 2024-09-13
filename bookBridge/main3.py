@@ -189,7 +189,7 @@ async def get_gather_data():
         all_lang = soup.find("div", class_="catalog_section_list").find_all('li')
         all_lang = [i.find('a')['href'] for i in all_lang]
 
-        for lang in all_lang[:4]:
+        for lang in all_lang:
             try:
                 response = await session.get(f'{BASE_URL}{lang}', headers=headers)
                 soup = bs(await response.text(), "lxml")
@@ -201,7 +201,7 @@ async def get_gather_data():
 
         tasks = []
 
-        for link in all_need_links[:5]:
+        for link in all_need_links:
             response = await session.get(f'{BASE_URL}{link}', headers=headers)
             await asyncio.sleep(10)
             soup = bs(await response.text(), "lxml")
@@ -211,7 +211,7 @@ async def get_gather_data():
                 pagination = int(pagination.find_all('a')[-1].text.strip())
             else:
                 pagination = 1
-            pagination = 3
+            # pagination = 3
             for page in range(1, pagination + 1):
                 await asyncio.sleep(5)
 
