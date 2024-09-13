@@ -1,6 +1,7 @@
 import os.path
 import time
 import re
+from time import sleep
 
 import pandas.io.formats.excel
 from fake_useragent import UserAgent
@@ -30,6 +31,42 @@ result = []
 
 id_to_del = []
 id_to_add = []
+
+
+def to_write_file(filepath, temporary=False, final_result=False):
+    if temporary:
+        df = pd.DataFrame(result)
+        df.to_excel(f'{filepath}.xlsx', index=False)
+        return
+    if not final_result:
+        filepath = filepath + "/temporary"
+    df = pd.DataFrame(result)
+    df.to_excel(f'{filepath}/all_result.xlsx', index=False)
+
+    df_one = pd.DataFrame().from_dict(df_price_one, orient='index')
+    df_one.index.name = 'Артикул'
+    df_one.to_excel(f'{filepath}/price_one.xlsx', index=True)
+
+    df_two = pd.DataFrame().from_dict(df_price_two, orient='index')
+    df_two.index.name = 'Артикул'
+    df_two.to_excel(f'{filepath}/price_two.xlsx')
+
+    df_three = pd.DataFrame().from_dict(df_price_three, orient='index')
+    df_three.index.name = 'Артикул'
+    df_three.to_excel(f'{filepath}/price_three.xlsx')
+
+    df_not_in_sale = pd.DataFrame().from_dict(not_in_sale, orient='index')
+    df_not_in_sale.index.name = 'Артикул'
+    df_not_in_sale.to_excel(f'{filepath}/not_in_sale.xlsx')
+
+    df_add = pd.DataFrame(id_to_add)
+    df_add.to_excel(f"{filepath}/add.xlsx", index=False)
+
+    df_del = pd.DataFrame(id_to_del)
+    df_del.to_excel(f"{filepath}/del.xlsx", index=False)
+
+
+
 
 semaphore = asyncio.Semaphore(10)
 
@@ -128,6 +165,9 @@ async def get_item_data(item, session, main_category=None):
         elif article + '.0' in sample and quantity == 'Нет в наличии':
             id_to_del.append({"Артикул": article + '.0'})
 
+        if count % 50 == 0:
+            to_write_file(filepath='result/temporary/temporary_result.xlsx' ,temporary=True)
+
         print(f'\r{count}', end='')
         count = count + 1
         result.append(res_dict)
@@ -149,7 +189,7 @@ async def get_gather_data():
         all_lang = soup.find("div", class_="catalog_section_list").find_all('li')
         all_lang = [i.find('a')['href'] for i in all_lang]
 
-        for lang in all_lang:
+        for lang in all_lang[:4]:
             try:
                 response = await session.get(f'{BASE_URL}{lang}', headers=headers)
                 soup = bs(await response.text(), "lxml")
@@ -161,7 +201,7 @@ async def get_gather_data():
 
         tasks = []
 
-        for link in all_need_links:
+        for link in all_need_links[:5]:
             response = await session.get(f'{BASE_URL}{link}', headers=headers)
             await asyncio.sleep(10)
             soup = bs(await response.text(), "lxml")
@@ -171,7 +211,7 @@ async def get_gather_data():
                 pagination = int(pagination.find_all('a')[-1].text.strip())
             else:
                 pagination = 1
-            # pagination = 5
+            pagination = 3
             for page in range(1, pagination + 1):
                 await asyncio.sleep(5)
 
@@ -191,8 +231,11 @@ async def get_gather_data():
                         file.write(f'{link} --- {page} --- {e}\n')
 
         await asyncio.gather(*tasks)
+        await asyncio.sleep(10)
 
-        print('--------------- Start parse error --------------')
+        to_write_file('result')
+
+        print('\n--------------- Start parse error --------------')
 
         reparse_tasks = []
         reparse_count = 0
@@ -210,31 +253,8 @@ async def get_gather_data():
 
 def main():
     asyncio.run(get_gather_data())
+    to_write_file(filepath='result', final_result=True)
 
-    df = pd.DataFrame(result)
-    df.to_excel('result/all_result.xlsx', index=False)
-
-    df_one = pd.DataFrame().from_dict(df_price_one, orient='index')
-    df_one.index.name = 'Артикул'
-    df_one.to_excel('result/price_one.xlsx', index=True)
-
-    df_two = pd.DataFrame().from_dict(df_price_two, orient='index')
-    df_two.index.name = 'Артикул'
-    df_two.to_excel('result/price_two.xlsx')
-
-    df_three = pd.DataFrame().from_dict(df_price_three, orient='index')
-    df_three.index.name = 'Артикул'
-    df_three.to_excel('result/price_three.xlsx')
-
-    df_not_in_sale = pd.DataFrame().from_dict(not_in_sale, orient='index')
-    df_not_in_sale.index.name = 'Артикул'
-    df_not_in_sale.to_excel('result/not_in_sale.xlsx')
-
-    df_add = pd.DataFrame(id_to_add)
-    df_add.to_excel("result/add.xlsx", index=False)
-
-    df_del = pd.DataFrame(id_to_del)
-    df_del.to_excel("result/del.xlsx", index=False)
 
 
 if __name__ == "__main__":
