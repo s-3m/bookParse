@@ -41,20 +41,21 @@ async def get_item_data(session, link, parse_error=False):
                                                                                                             'True')
             need_data_dict = eval(a[:-1])['Products'][0]
             stock = need_data_dict['Stock']
-            articul = link.split('/')[-2]
+            article= link.split('/')[-2]
             # all_details = soup.find_all('dl', class_='book__details-item')
             # for detail in all_details:
             #     detail = detail.find_all('dt')
             #     if detail[0].text.strip() == 'ISBN:':
             #         isbn = detail[1].text.strip()
 
-            articul = articul + '.0'
+            article = article + '.0'
             # item_data['Наличие'] = stock
+
 
             print(f'\r{count}', end='')
             count = count + 1
 
-            result[articul] = {'Наличие': stock}
+            result[article] = {'Наличие': stock}
 
     except Exception as e:
         if parse_error:

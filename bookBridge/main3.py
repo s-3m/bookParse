@@ -248,6 +248,7 @@ async def get_gather_data():
             for item in reparse_items:
                 task = asyncio.create_task(get_item_data(item, session))
                 reparse_tasks.append(task)
+            reparse_count += 1
             await asyncio.gather(*reparse_tasks)
 
 
