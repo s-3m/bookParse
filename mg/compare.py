@@ -18,13 +18,11 @@ headers = {
     "user-agent": USER_AGENT.random
 }
 
-df = pd.read_excel('compare/gvardia_new_stock.xlsx', converters={'id': str})
-df = df.where(df.notnull(), None)
-sample = df.to_dict('records')
+
 count = 1
 
 
-async def get_item_data(session, item, semaphore, reparse=False):
+async def get_item_data(session, item, semaphore, sample, reparse=False):
     global count
     item_id = item['id']
     if not item_id:
@@ -54,13 +52,13 @@ async def get_item_data(session, item, semaphore, reparse=False):
             file.write(f'{item_id} --- {item['article']} --- {e}\n')
 
 
-async def get_gather_data(semaphore):
+async def get_gather_data(semaphore, sample):
 
     tasks = []
     async with (aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False, limit_per_host=10, limit=50),
                                       timeout=aiohttp.ClientTimeout(total=None)) as session):
         for item in sample:
-            task = asyncio.create_task(get_item_data(session, item, semaphore))
+            task = asyncio.create_task(get_item_data(session, item, semaphore, sample))
             tasks.append(task)
 
         await asyncio.gather(*tasks)
@@ -77,7 +75,7 @@ async def get_gather_data(semaphore):
             reparse_tasks = []
 
             for item in id_list:
-                task = asyncio.create_task(get_item_data(session, item, semaphore, reparse=True))
+                task = asyncio.create_task(get_item_data(session, item, semaphore, sample, reparse=True))
                 reparse_tasks.append(task)
 
             await asyncio.gather(*reparse_tasks)
@@ -88,8 +86,12 @@ async def get_gather_data(semaphore):
 
 def main():
     print('start\n')
+    df = pd.read_excel('compare/gvardia_new_stock.xlsx', converters={'id': str})
+    df = df.where(df.notnull(), None)
+    sample = df.to_dict('records')
+
     semaphore = asyncio.Semaphore(5)
-    asyncio.run(get_gather_data(semaphore))
+    asyncio.run(get_gather_data(semaphore, sample))
     df_result = pd.DataFrame(sample)
     df_result.drop_duplicates(inplace=True, keep='last', subset='article')
     df_result.to_excel('compare/all_result.xlsx', index=False)
@@ -97,6 +99,8 @@ def main():
     df_del.to_excel('compare/gvardia_del.xlsx', index=False)
     df_without_del = df_result.loc[df_result['stock'] != 'del']
     df_without_del.to_excel('compare/gvardia_new_stock.xlsx', index=False)
+    global count
+    count = 1
     time.sleep(10)
     send_email()
 
