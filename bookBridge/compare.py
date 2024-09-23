@@ -7,27 +7,28 @@ from fake_useragent import UserAgent
 import aiohttp
 import asyncio
 import pandas as pd
+from email_me import send_email
 
 pandas.io.formats.excel.ExcelFormatter.header_style = None
 
 BASE_URL = "https://bookbridge.ru"
 USER_AGENT = UserAgent()
 
-cookies = {
-    'ASPRO_MAX_USE_MODIFIER': 'Y',
-    'BITRIX_SM_GUEST_ID': '1624218',
-    'BITRIX_SM_SALE_UID': 'e18c295fc8063d2ca6e15168ee6ac63d',
-    '_ym_debug': 'null',
-    'BITRIX_CONVERSION_CONTEXT_s1': '%7B%22ID%22%3A2%2C%22EXPIRE%22%3A1727125140%2C%22UNIQUE%22%3A%5B%22conversion_visit_day%22%5D%7D',
-    '_ym_uid': '1727085555223271303',
-    '_ym_isad': '2',
-    'BX_USER_ID': '7fb6960376433edd08736e7dacc8660d',
-    'PHPSESSID': 'sKj7Sj7tTeow2NuxAqVXp1BzIu3A2nTq',
-    '_ym_visorc': 'w',
-    'MAX_VIEWED_ITEMS_s1': '%7B%2218139%22%3A%5B%221727085604307%22%2C%222106313%22%5D%2C%2277316%22%3A%5B%221727089427922%22%2C%222212995%22%5D%2C%22351631%22%3A%5B%221727089643749%22%2C%222215984%22%5D%7D',
-    '_ym_d': '1727089644',
-    'BITRIX_SM_LAST_VISIT': '23.09.2024%2014%3A07%3A24',
-}
+# cookies = {
+#     'ASPRO_MAX_USE_MODIFIER': 'Y',
+#     'BITRIX_SM_GUEST_ID': '1624218',
+#     'BITRIX_SM_SALE_UID': 'e18c295fc8063d2ca6e15168ee6ac63d',
+#     '_ym_debug': 'null',
+#     'BITRIX_CONVERSION_CONTEXT_s1': '%7B%22ID%22%3A2%2C%22EXPIRE%22%3A1727125140%2C%22UNIQUE%22%3A%5B%22conversion_visit_day%22%5D%7D',
+#     '_ym_uid': '1727085555223271303',
+#     '_ym_isad': '2',
+#     'BX_USER_ID': '7fb6960376433edd08736e7dacc8660d',
+#     'PHPSESSID': 'sKj7Sj7tTeow2NuxAqVXp1BzIu3A2nTq',
+#     '_ym_visorc': 'w',
+#     'MAX_VIEWED_ITEMS_s1': '%7B%2218139%22%3A%5B%221727085604307%22%2C%222106313%22%5D%2C%2277316%22%3A%5B%221727089427922%22%2C%222212995%22%5D%2C%22351631%22%3A%5B%221727089643749%22%2C%222215984%22%5D%7D',
+#     '_ym_d': '1727089644',
+#     'BITRIX_SM_LAST_VISIT': '23.09.2024%2014%3A07%3A24',
+# }
 
 headers = {
     'Accept': '*/*',
@@ -49,9 +50,9 @@ headers = {
     'sec-ch-ua-platform': '"Windows"',
 }
 
-params = {
-    'bxrand': '1727090296015',
-}
+# params = {
+#     'bxrand': '1727090296015',
+# }
 
 count = 1
 
@@ -59,7 +60,7 @@ count = 1
 async def get_item_data(session, item, semaphore):
     async with semaphore:
         try:
-            async with session.get(item['link'], cookies=cookies, headers=headers, params=params) as resp:
+            async with session.get(item['link'], headers=headers) as resp:
                 response = await resp.json(content_type=None)
                 page_text = response['dynamicBlocks'][12]['CONTENT'].strip()
                 soup = bs(page_text, 'html.parser')
@@ -77,7 +78,7 @@ async def get_item_data(session, item, semaphore):
 
 async def get_gather_data():
     all_items_list = pd.read_excel('compare/bb_new_stock_dev.xlsx').to_dict('records')
-    semaphore = asyncio.Semaphore(10)
+    semaphore = asyncio.Semaphore(5)
     tasks = []
     async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False, limit=50, limit_per_host=10),
                                      trust_env=True) as session:
@@ -87,16 +88,27 @@ async def get_gather_data():
 
         await asyncio.gather(*tasks)
 
+    await asyncio.sleep(30)
     df_result = pd.DataFrame(all_items_list)
     df_result.loc[df_result['in_stock'] != 'del'].to_excel('compare/bb_new_stock_dev.xlsx', index=False)
     df_without_del = df_result.loc[df_result['in_stock'] != 'del'][['article', 'in_stock']]
     df_del = df_result.loc[df_result['in_stock'] == 'del'][['article']]
-    df_without_del.to_excel('compare/bb_new_stock_wd.xlsx', index=False)
+    df_without_del.to_excel('compare/bb_new_stock.xlsx', index=False)
     df_del.to_excel('compare/bb_del.xlsx', index=False)
 
 
 def main():
     asyncio.run(get_gather_data())
+    time.sleep(60)
+    send_email()
+
+
+
+def super_main():
+    schedule.every().day.at('01:10').do(main)
+
+    while True:
+        schedule.run_pending()
 
 
 if __name__ == '__main__':
