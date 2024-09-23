@@ -66,9 +66,8 @@ def to_write_file(filepath, temporary=False, final_result=False):
     df_del.to_excel(f"{filepath}/del.xlsx", index=False)
 
 
-
-
 semaphore = asyncio.Semaphore(10)
+
 
 async def get_item_data(item, session, main_category=None):
     global count
@@ -112,7 +111,7 @@ async def get_item_data(item, session, main_category=None):
 
         try:
             article = soup.find('div', class_='article').find_all('span')[1].text.strip()
-            res_dict['Артикул'] = article
+            res_dict['Артикул'] = article + ".0"
         except:
             article = 'Нет артикула'
             res_dict['Артикул'] = article
@@ -166,7 +165,7 @@ async def get_item_data(item, session, main_category=None):
             id_to_del.append({"Артикул": article + '.0'})
 
         if count % 50 == 0:
-            to_write_file(filepath='result/temporary/temporary_result.xlsx' ,temporary=True)
+            to_write_file(filepath='result/temporary/temporary_result.xlsx', temporary=True)
 
         print(f'\r{count}', end='')
         count = count + 1
@@ -182,7 +181,8 @@ async def get_item_data(item, session, main_category=None):
 async def get_gather_data():
     all_need_links = []
 
-    async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False, limit=50, limit_per_host=10), trust_env=True) as session:
+    async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False, limit=50, limit_per_host=10),
+                                     trust_env=True) as session:
         response = await session.get(f'{BASE_URL}/catalog', headers=headers)
         response_text = await response.text()
         soup = bs(response_text, "lxml")
@@ -255,7 +255,6 @@ async def get_gather_data():
 def main():
     asyncio.run(get_gather_data())
     to_write_file(filepath='result', final_result=True)
-
 
 
 if __name__ == "__main__":
