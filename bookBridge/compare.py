@@ -1,4 +1,3 @@
-import os.path
 import time
 import schedule
 import pandas.io.formats.excel
@@ -61,6 +60,7 @@ async def get_item_data(session, item, semaphore):
     async with semaphore:
         try:
             async with session.get(item['link'], headers=headers) as resp:
+                await asyncio.sleep(2)
                 response = await resp.json(content_type=None)
                 page_text = response['dynamicBlocks'][12]['CONTENT'].strip()
                 soup = bs(page_text, 'html.parser')
@@ -73,7 +73,9 @@ async def get_item_data(session, item, semaphore):
                 count += 1
             item["in_stock"] = stock_quantity
         except Exception as e:
-            print(f'{item["link"]} - {e}')
+            with open('error.txt', 'a+') as f:
+                f.write(f"{item['link']} --- {e}\n")
+            item["in_stock"] = '2'
 
 
 async def get_gather_data():
@@ -103,9 +105,8 @@ def main():
     send_email()
 
 
-
 def super_main():
-    schedule.every().day.at('01:10').do(main)
+    schedule.every().day.at('00:10').do(main)
 
     while True:
         schedule.run_pending()
