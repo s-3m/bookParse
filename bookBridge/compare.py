@@ -57,10 +57,11 @@ count = 1
 
 
 async def get_item_data(session, item, semaphore):
+
     async with semaphore:
         try:
             async with session.get(item['link'], headers=headers) as resp:
-                await asyncio.sleep(2)
+                await asyncio.sleep(3)
                 response = await resp.json(content_type=None)
                 page_text = response['dynamicBlocks'][12]['CONTENT'].strip()
                 soup = bs(page_text, 'html.parser')
@@ -79,12 +80,17 @@ async def get_item_data(session, item, semaphore):
 
 
 async def get_gather_data():
-    all_items_list = pd.read_excel('compare/bb_new_stock_dev.xlsx').to_dict('records')
+    df = pd.read_excel('compare/bb_new_stock_dev.xlsx')
+    df = df.where(df.notnull(), None)
+    all_items_list = df.to_dict('records')
     semaphore = asyncio.Semaphore(5)
     tasks = []
     async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False, limit=50, limit_per_host=10),
                                      trust_env=True) as session:
         for item in all_items_list:
+            if not item['link']:
+                item['stock'] = 'del'
+                continue
             task = asyncio.create_task(get_item_data(session, item, semaphore))
             tasks.append(task)
 
