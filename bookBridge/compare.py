@@ -57,13 +57,17 @@ count = 1
 
 
 async def get_item_data(session, item, semaphore):
-
+    parse_count = 0
     async with semaphore:
         try:
             async with session.get(item['link'], headers=headers) as resp:
                 await asyncio.sleep(3)
                 response = await resp.json(content_type=None)
-                page_text = response['dynamicBlocks'][12]['CONTENT'].strip()
+                dynamic_block = response.get('dynamicBlocks')
+                if not dynamic_block:
+                    item['in_stock'] = 'del'
+                    return
+                page_text = dynamic_block[12]['CONTENT'].strip()
                 soup = bs(page_text, 'html.parser')
                 quantity_element = soup.find("span", class_="plus dark-color")
                 stock_quantity = 'del'
@@ -73,6 +77,11 @@ async def get_item_data(session, item, semaphore):
                 print(f'\r{count}', end='')
                 count += 1
             item["in_stock"] = stock_quantity
+        except ValueError:
+            if parse_count < 3:
+                await asyncio.sleep(3)
+                await get_item_data(session, item, semaphore)
+            item["in_stock"] = '2'
         except Exception as e:
             with open('error.txt', 'a+') as f:
                 f.write(f"{item['link']} --- {e}\n")
@@ -96,6 +105,9 @@ async def get_gather_data():
 
         await asyncio.gather(*tasks)
 
+    global count
+    count = 1
+
     await asyncio.sleep(30)
     df_result = pd.DataFrame(all_items_list)
     df_result.loc[df_result['in_stock'] != 'del'].to_excel('compare/bb_new_stock_dev.xlsx', index=False)
@@ -112,7 +124,7 @@ def main():
 
 
 def super_main():
-    schedule.every().day.at('00:10').do(main)
+    schedule.every().day.at('20:20').do(main)
 
     while True:
         schedule.run_pending()
@@ -120,5 +132,5 @@ def super_main():
 
 if __name__ == '__main__':
     start_time = time.time()
-    main()
+    super_main()
     print(f'\n{time.time() - start_time}')
