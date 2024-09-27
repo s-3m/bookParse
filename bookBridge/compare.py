@@ -1,4 +1,6 @@
 import time
+import datetime
+
 import schedule
 import pandas.io.formats.excel
 from bs4 import BeautifulSoup as bs
@@ -56,7 +58,7 @@ headers = {
 count = 1
 
 
-async def get_item_data(session, item, semaphore, reparse_item=3):
+async def get_item_data(session, item, error_items, semaphore):
     async with semaphore:
         try:
             async with session.get(item['link'], headers=headers) as resp:
@@ -76,42 +78,51 @@ async def get_item_data(session, item, semaphore, reparse_item=3):
                 print(f'\r{count}', end='')
                 count += 1
             item["in_stock"] = stock_quantity
-        except ValueError as e:
-            if reparse_item > 1:
-                await asyncio.sleep(3)
-                reparse_item -= 1
-                await get_item_data(session, item, semaphore, reparse_item)
-            with open('error.txt', 'a+') as f:
-                f.write(f"{item['link']} --- {e}\n")
-            item["in_stock"] = '2'
         except Exception as e:
+            item['in_stock'] = '2'
+            error_items.append(item)
+            today = datetime.date.today().strftime('%d-%m-%Y')
             with open('error.txt', 'a+') as f:
-                f.write(f"{item['link']} --- {e}\n")
-            item["in_stock"] = '2'
+                f.write(f"{today} --- {item['link']} --- {e}\n")
 
 
 async def get_gather_data():
     df = pd.read_excel('compare/bb_new_stock_dev.xlsx')
     df = df.where(df.notnull(), None)
     all_items_list = df.to_dict('records')
+    error_items_list = []
     semaphore = asyncio.Semaphore(5)
     tasks = []
     async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False, limit=50, limit_per_host=10),
                                      trust_env=True) as session:
         for item in all_items_list:
             if not item['link']:
-                item['stock'] = 'del'
+                item['in_stock'] = 'del'
                 continue
-            task = asyncio.create_task(get_item_data(session, item, semaphore))
+            task = asyncio.create_task(get_item_data(session, item, error_items_list, semaphore))
             tasks.append(task)
 
         await asyncio.gather(*tasks)
+
+        # Start reparse error
+        error_tasks = []
+        reparse_count = 0
+        while error_items_list and reparse_count < 4:
+            reparse_count += 1
+            new_items_list = error_items_list.copy()
+            error_items_list.clear()
+            for item in new_items_list:
+                task = asyncio.create_task(get_item_data(session, item, error_items_list, semaphore))
+                error_tasks.append(task)
+            await asyncio.gather(*error_tasks)
+            all_items_list.extend(new_items_list)
 
     global count
     count = 1
 
     await asyncio.sleep(30)
     df_result = pd.DataFrame(all_items_list)
+    df_result.drop_duplicates(keep='last', inplace=True, subset='article')
     df_result.loc[df_result['in_stock'] != 'del'].to_excel('compare/bb_new_stock_dev.xlsx', index=False)
     df_without_del = df_result.loc[df_result['in_stock'] != 'del'][['article', 'in_stock']]
     df_del = df_result.loc[df_result['in_stock'] == 'del'][['article']]
