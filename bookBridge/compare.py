@@ -56,8 +56,7 @@ headers = {
 count = 1
 
 
-async def get_item_data(session, item, semaphore):
-    parse_count = 0
+async def get_item_data(session, item, semaphore, reparse_item=3):
     async with semaphore:
         try:
             async with session.get(item['link'], headers=headers) as resp:
@@ -77,10 +76,13 @@ async def get_item_data(session, item, semaphore):
                 print(f'\r{count}', end='')
                 count += 1
             item["in_stock"] = stock_quantity
-        except ValueError:
-            if parse_count < 3:
+        except ValueError as e:
+            if reparse_item > 1:
                 await asyncio.sleep(3)
-                await get_item_data(session, item, semaphore)
+                reparse_item -= 1
+                await get_item_data(session, item, semaphore, reparse_item)
+            with open('error.txt', 'a+') as f:
+                f.write(f"{item['link']} --- {e}\n")
             item["in_stock"] = '2'
         except Exception as e:
             with open('error.txt', 'a+') as f:
