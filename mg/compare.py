@@ -46,9 +46,9 @@ async def get_item_data(session, item, semaphore, sample, reparse=False):
                 print(f'\r{count}', end='')
                 count += 1
     except Exception as e:
-        if not os.path.exists('./compare/'):
-            os.makedirs('./compare/')
-        with open('./compare/error.txt', 'a+') as file:
+        if not os.path.exists(f'{os.path.dirname(os.path.realpath(__file__))}/compare/'):
+            os.makedirs(f'{os.path.dirname(os.path.realpath(__file__))}/compare/')
+        with open(f'{os.path.dirname(os.path.realpath(__file__))}/compare/error.txt', 'a+') as file:
             file.write(f'{item_id} --- {item['article']} --- {e}\n')
 
 
@@ -64,13 +64,13 @@ async def get_gather_data(semaphore, sample):
         await asyncio.gather(*tasks)
 
         reparse_count = 0
-        while os.path.exists('./compare/error.txt') and reparse_count < 10:
+        while os.path.exists(f'{os.path.dirname(os.path.realpath(__file__))}/compare/error.txt') and reparse_count < 10:
             print('\n------- Start reparse error ------')
             reparse_count += 1
-            with open('./compare/error.txt') as file:
+            with open(f'{os.path.dirname(os.path.realpath(__file__))}/compare/error.txt') as file:
                 id_list = [{'id': i.split(' --- ')[0], 'article': i.split(' --- ')[1]} for i in file.readlines()]
                 print(f'--- Quantity error - {len(id_list)}')
-                os.remove('./compare/error.txt')
+                os.remove(f'{os.path.dirname(os.path.realpath(__file__))}/compare/error.txt')
 
             reparse_tasks = []
 
@@ -86,7 +86,8 @@ async def get_gather_data(semaphore, sample):
 
 def main():
     print('start\n')
-    df = pd.read_excel('compare/gvardia_new_stock.xlsx', converters={'id': str})
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    df = pd.read_excel(f'{dir_path}/compare/gvardia_new_stock.xlsx', converters={'id': str})
     df = df.where(df.notnull(), None)
     sample = df.to_dict('records')
 
@@ -94,11 +95,11 @@ def main():
     asyncio.run(get_gather_data(semaphore, sample))
     df_result = pd.DataFrame(sample)
     df_result.drop_duplicates(inplace=True, keep='last', subset='article')
-    df_result.to_excel('compare/all_result.xlsx', index=False)
+    df_result.to_excel(f'{dir_path}/compare/all_result.xlsx', index=False)
     df_del = df_result.loc[df_result['stock'] == 'del'][['article']]
-    df_del.to_excel('compare/gvardia_del.xlsx', index=False)
+    df_del.to_excel(f'{dir_path}/compare/gvardia_del.xlsx', index=False)
     df_without_del = df_result.loc[df_result['stock'] != 'del']
-    df_without_del.to_excel('compare/gvardia_new_stock.xlsx', index=False)
+    df_without_del.to_excel(f'{dir_path}/compare/gvardia_new_stock.xlsx', index=False)
     global count
     count = 1
     time.sleep(10)
