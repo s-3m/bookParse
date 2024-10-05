@@ -1,3 +1,4 @@
+import os
 import smtplib
 import time
 from email.mime.application import MIMEApplication
@@ -21,10 +22,10 @@ def send_email():
     msg["To"] = sender
     msg["Subject"] = "Parse result (gvardia)"
 
-    with open('compare/gvardia_del.xlsx', 'rb') as f:
+    with open(f'{os.path.dirname(os.path.realpath(__file__))}/compare/gvardia_del.xlsx', 'rb') as f:
         file_del = MIMEApplication(f.read(), 'xlsx')
 
-    with open('compare/gvardia_new_stock.xlsx', 'rb') as f:
+    with open(f'{os.path.dirname(os.path.realpath(__file__))}/compare/gvardia_new_stock.xlsx', 'rb') as f:
         file_new_stock = MIMEApplication(f.read(), 'xlsx')
 
     file_del.add_header('content-disposition', 'attachment', filename='gvardia_del.xlsx')

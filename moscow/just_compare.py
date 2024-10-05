@@ -52,13 +52,13 @@ async def to_check_item(article, session, past_day_result, to_del):
         print(f'\r{count}', end='')
         count += 1
     except Exception as e:
-        with open('just_compare_error.txt', 'a+') as f:
+        with open(f'{os.path.dirname(os.path.realpath(__file__))}/just_compare_error.txt', 'a+') as f:
             f.write(f'{link} ------ {e}\n')
 
 
 async def reparse_error(session, past_day_result, to_del):
     reparse_count = 0
-    error_file = 'just_compare_error.txt'
+    error_file = f'{os.path.dirname(os.path.realpath(__file__))}/just_compare_error.txt'
     try:
         while True:
             if not os.path.exists(error_file) or reparse_count > 10:
@@ -80,8 +80,8 @@ async def reparse_error(session, past_day_result, to_del):
 async def get_compare():
     tasks = []
     to_del = []
-    past_day_result = pd.read_excel('new_stock.xlsx', converters={'Артикул': str}).set_index('Артикул').to_dict(
-        'index')
+    past_day_result = pd.read_excel(f'{os.path.dirname(os.path.realpath(__file__))}/new_stock.xlsx',
+                                    converters={'Артикул': str}).set_index('Артикул').to_dict('index')
     article_list = list(past_day_result.keys())
     async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False), trust_env=True) as session:
         for article in article_list:
@@ -91,10 +91,10 @@ async def get_compare():
     df = pd.DataFrame().from_dict(past_day_result, 'index')
     df.index.name = 'Артикул'
     df.index = df.index.astype(str)
-    df.to_excel('new_stock.xlsx')
+    df.to_excel(f'{os.path.dirname(os.path.realpath(__file__))}/new_stock.xlsx')
 
     del_df = pd.DataFrame({'Артикул': to_del})
-    del_df.to_excel('del.xlsx', index=False)
+    del_df.to_excel(f'{os.path.dirname(os.path.realpath(__file__))}/del.xlsx', index=False)
 
 
 def main():

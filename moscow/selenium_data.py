@@ -1,15 +1,13 @@
-import json
-import pprint
+import os
 import time
 from selenium import webdriver
-from selenium.webdriver import Keys
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.select import Select
 
 
 def get_book_data(link):
-    s = Service(executable_path='../chromedriver.exe')
+    s = Service(executable_path=f'{os.path.dirname(os.path.dirname(os.path.realpath(__file__)))}/chromedriver.exe')
     o = webdriver.ChromeOptions()
     o.add_argument("--ignore-certificate-errors")
     o.add_argument('--allow-running-insecure-content')

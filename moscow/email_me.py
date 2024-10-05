@@ -1,3 +1,4 @@
+import os
 import smtplib
 import time
 from email.mime.application import MIMEApplication
@@ -20,9 +21,9 @@ def send_email():
     msg["To"] = sender
     msg["Subject"] = "Parse result (msk_book)"
 
-    with open('new_stock.xlsx', 'rb') as f:
+    with open(f'{os.path.dirname(os.path.realpath(__file__))}/new_stock.xlsx', 'rb') as f:
         file_stock = MIMEApplication(f.read(), 'xlsx')
-    with open('del.xlsx', 'rb') as f:
+    with open(f'{os.path.dirname(os.path.realpath(__file__))}/del.xlsx', 'rb') as f:
         file_del = MIMEApplication(f.read(), 'xlsx')
 
     file_stock.add_header('content-disposition', 'attachment', filename='new_stock.xlsx')
