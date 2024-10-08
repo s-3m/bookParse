@@ -7,7 +7,7 @@ from fake_useragent import UserAgent
 import aiohttp
 import asyncio
 import pandas as pd
-from email_me import send_email
+from tg_sender import tg_send_files
 
 pandas.io.formats.excel.ExcelFormatter.header_style = None
 
@@ -95,16 +95,21 @@ def main():
     asyncio.run(get_gather_data(semaphore, sample))
     df_result = pd.DataFrame(sample)
     df_result.drop_duplicates(inplace=True, keep='last', subset='article')
-    df_result.to_excel(f'{dir_path}/compare/all_result.xlsx', index=False)
+
+    result_file = f'{dir_path}/compare/all_result.xlsx'
+    df_result.to_excel(result_file, index=False)
+
     df_del = df_result.loc[df_result['stock'] == 'del'][['article']]
-    df_del.to_excel(f'{dir_path}/compare/gvardia_del.xlsx', index=False)
+    del_file =  f'{dir_path}/compare/gvardia_del.xlsx'
+    df_del.to_excel(del_file, index=False)
+
     df_without_del = df_result.loc[df_result['stock'] != 'del']
-    df_without_del.to_excel(f'{dir_path}/compare/gvardia_new_stock.xlsx', index=False)
+    stock_file = f'{dir_path}/compare/gvardia_new_stock.xlsx'
+    df_without_del.to_excel(stock_file, index=False)
     global count
     count = 1
     time.sleep(10)
-    send_email()
-
+    asyncio.run(tg_send_files([stock_file, del_file], subject='Гвардия'))
 
 def super_main():
     schedule.every().day.at('03:30').do(main)

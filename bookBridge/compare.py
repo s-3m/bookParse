@@ -1,3 +1,4 @@
+import os
 import time
 import datetime
 
@@ -8,7 +9,7 @@ from fake_useragent import UserAgent
 import aiohttp
 import asyncio
 import pandas as pd
-from email_me import send_email
+from tg_sender import tg_send_files
 
 pandas.io.formats.excel.ExcelFormatter.header_style = None
 
@@ -121,23 +122,28 @@ async def get_gather_data():
     count = 1
 
     await asyncio.sleep(30)
+    abs_path = os.path.abspath(os.path.dirname(__file__))
     df_result = pd.DataFrame(all_items_list)
     df_result.drop_duplicates(keep='last', inplace=True, subset='article')
-    df_result.loc[df_result['in_stock'] != 'del'].to_excel('compare/bb_new_stock_dev.xlsx', index=False)
+    df_result.loc[df_result['in_stock'] != 'del'].to_excel(f'{abs_path}/compare/bb_new_stock_dev.xlsx', index=False)
     df_without_del = df_result.loc[df_result['in_stock'] != 'del'][['article', 'in_stock']]
     df_del = df_result.loc[df_result['in_stock'] == 'del'][['article']]
-    df_without_del.to_excel('compare/bb_new_stock.xlsx', index=False)
-    df_del.to_excel('compare/bb_del.xlsx', index=False)
+    del_path = f'{abs_path}/compare/bb_del.xlsx'
+    without_del_path = f'{abs_path}/compare/bb_new_stock.xlsx'
+    df_without_del.to_excel(without_del_path, index=False)
+    df_del.to_excel(del_path, index=False)
+
+    await asyncio.sleep(10)
+    await tg_send_files([without_del_path, del_path], subject='бб')
 
 
 def main():
     asyncio.run(get_gather_data())
     time.sleep(60)
-    send_email()
 
 
 def super_main():
-    schedule.every().day.at('20:20').do(main)
+    schedule.every().day.at('20:00').do(main)
 
     while True:
         schedule.run_pending()

@@ -9,8 +9,8 @@ from bs4 import BeautifulSoup as bs
 import time
 import schedule
 
-from email_me import send_email
 from selenium_data import get_book_data
+from tg_sender import tg_send_files
 
 BASE_URL = "https://www.moscowbooks.ru/"
 USER_AGENT = UserAgent()
@@ -80,7 +80,7 @@ async def reparse_error(session, past_day_result, to_del):
 async def get_compare():
     tasks = []
     to_del = []
-    past_day_result = pd.read_excel(f'{os.path.dirname(os.path.realpath(__file__))}/new_stock.xlsx',
+    past_day_result = pd.read_excel(f'{os.path.dirname(os.path.realpath(__file__))}/msk_new_stock.xlsx',
                                     converters={'Артикул': str}).set_index('Артикул').to_dict('index')
     article_list = list(past_day_result.keys())
     async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False), trust_env=True) as session:
@@ -88,19 +88,23 @@ async def get_compare():
             await to_check_item(article, session, past_day_result, to_del)
         await reparse_error(session, past_day_result, to_del)
 
+    abs_path = os.path.dirname(os.path.realpath(__file__))
     df = pd.DataFrame().from_dict(past_day_result, 'index')
     df.index.name = 'Артикул'
     df.index = df.index.astype(str)
-    df.to_excel(f'{os.path.dirname(os.path.realpath(__file__))}/new_stock.xlsx')
+    file_stock = f'{abs_path}/msk_new_stock.xlsx'
+    df.to_excel(file_stock)
 
     del_df = pd.DataFrame({'Артикул': to_del})
-    del_df.to_excel(f'{os.path.dirname(os.path.realpath(__file__))}/del.xlsx', index=False)
+    file_del = f'{abs_path}/msk_del.xlsx'
+    del_df.to_excel(file_del, index=False)
+
+    await tg_send_files([file_stock, file_del], subject='Москва')
 
 
 def main():
     asyncio.run(get_compare())
     time.sleep(10)
-    send_email()
 
 
 def super_main():
