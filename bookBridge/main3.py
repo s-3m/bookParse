@@ -158,7 +158,7 @@ async def get_item_data(item, session, main_category=None):
 
         if article + '.0' in not_in_sale and quantity != 'Нет в наличии':
             not_in_sale[article + '.0']['В продаже'] = 'Да'
-        elif article + '.0' not in sample and quantity != 'Нет в наличии':
+        if article + '.0' not in sample and quantity != 'Нет в наличии':
             res_dict['Артикул'] = article + '.0'
             id_to_add.append(res_dict)
         elif article + '.0' in sample and quantity == 'Нет в наличии':
