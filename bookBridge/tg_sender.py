@@ -17,7 +17,7 @@ async def tg_send_files(files:list[str], subject):
         file = InputMediaDocument(media=file, caption=subject)
         files_list.append(file)
     logger.info(f"Sending files ({subject})")
-    await bot.send_media_group('259811443', files_list)
+    await bot.send_media_group(os.getenv('CHAT_ID'), files_list)
     await bot.session.close()
     logger.success(f"Sending was finished successfully ({subject})")
 
