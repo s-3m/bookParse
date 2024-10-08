@@ -8,6 +8,7 @@ import aiohttp
 import asyncio
 import pandas as pd
 from tg_sender import tg_send_files
+from loguru import logger
 
 pandas.io.formats.excel.ExcelFormatter.header_style = None
 
@@ -43,7 +44,8 @@ async def get_item_data(session, item, semaphore, sample, reparse=False):
                 if reparse:
                     sample.append(item)
 
-                print(f'\r{count}', end='')
+                print(f'\rDone - {count}', end='')
+                # logger.info(f'\rDone - {count}\r', end='')
                 count += 1
     except Exception as e:
         if not os.path.exists(f'{os.path.dirname(os.path.realpath(__file__))}/compare/'):
@@ -65,7 +67,9 @@ async def get_gather_data(semaphore, sample):
 
         reparse_count = 0
         while os.path.exists(f'{os.path.dirname(os.path.realpath(__file__))}/compare/error.txt') and reparse_count < 10:
-            print('\n------- Start reparse error ------')
+            # print('\n------- Start reparse error ------')
+            print()
+            logger.info('\nStart reparse error')
             reparse_count += 1
             with open(f'{os.path.dirname(os.path.realpath(__file__))}/compare/error.txt') as file:
                 id_list = [{'id': i.split(' --- ')[0], 'article': i.split(' --- ')[1]} for i in file.readlines()]
@@ -85,7 +89,8 @@ async def get_gather_data(semaphore, sample):
 
 
 def main():
-    print('start\n')
+    # print('start\n')
+    logger.info('Start MG parsing')
     dir_path = os.path.dirname(os.path.realpath(__file__))
     df = pd.read_excel(f'{dir_path}/compare/gvardia_new_stock.xlsx', converters={'id': str})
     df = df.where(df.notnull(), None)
@@ -109,6 +114,8 @@ def main():
     global count
     count = 1
     time.sleep(10)
+    print()
+    logger.success('Parse end successfully')
     asyncio.run(tg_send_files([stock_file, del_file], subject='Гвардия'))
 
 def super_main():

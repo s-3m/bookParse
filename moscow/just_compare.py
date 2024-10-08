@@ -1,6 +1,6 @@
 import asyncio
 import os
-
+from loguru import logger
 import aiohttp
 import pandas as pd
 from pandas.io.formats import excel
@@ -57,6 +57,7 @@ async def to_check_item(article, session, past_day_result, to_del):
 
 
 async def reparse_error(session, past_day_result, to_del):
+    logger.warning('Start reparse error')
     reparse_count = 0
     error_file = f'{os.path.dirname(os.path.realpath(__file__))}/just_compare_error.txt'
     try:
@@ -64,7 +65,6 @@ async def reparse_error(session, past_day_result, to_del):
             if not os.path.exists(error_file) or reparse_count > 10:
                 break
             else:
-                print('----------------------Start error parsing---------------------------')
                 with open(error_file, 'r') as file:
                     error_links_list = [i.split(' ------ ')[0] for i in file.readlines()]
                     article_list = [link.split('/')[-2] + '.0' for link in error_links_list]
@@ -88,6 +88,7 @@ async def get_compare():
             await to_check_item(article, session, past_day_result, to_del)
         await reparse_error(session, past_day_result, to_del)
 
+    logger.info('Preparing files for sending')
     abs_path = os.path.dirname(os.path.realpath(__file__))
     df = pd.DataFrame().from_dict(past_day_result, 'index')
     df.index.name = 'Артикул'
@@ -99,10 +100,12 @@ async def get_compare():
     file_del = f'{abs_path}/msk_del.xlsx'
     del_df.to_excel(file_del, index=False)
 
+    logger.info('Start sending files')
     await tg_send_files([file_stock, file_del], subject='Москва')
 
 
 def main():
+    logger.info('Start parsing Moscow')
     asyncio.run(get_compare())
     time.sleep(10)
 

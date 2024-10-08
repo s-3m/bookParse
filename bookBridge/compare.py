@@ -1,8 +1,9 @@
 import os
 import time
 import datetime
-
+from dotenv import load_dotenv
 import schedule
+from loguru import logger
 import pandas.io.formats.excel
 from bs4 import BeautifulSoup as bs
 from fake_useragent import UserAgent
@@ -88,7 +89,7 @@ async def get_item_data(session, item, error_items, semaphore):
 
 
 async def get_gather_data():
-    df = pd.read_excel('compare/bb_new_stock_dev.xlsx')
+    df = pd.read_excel('compare/bb_new_stock_dev.xlsx', converters={'article': str})
     df = df.where(df.notnull(), None)
     all_items_list = df.to_dict('records')
     error_items_list = []
@@ -109,6 +110,8 @@ async def get_gather_data():
         error_tasks = []
         reparse_count = 0
         while error_items_list and reparse_count < 4:
+            print()
+            logger.warning('Start reparse error')
             reparse_count += 1
             new_items_list = error_items_list.copy()
             error_items_list.clear()
@@ -118,10 +121,13 @@ async def get_gather_data():
             await asyncio.gather(*error_tasks)
             all_items_list.extend(new_items_list)
 
+    print()
+    logger.success('Finished parser successfully')
     global count
     count = 1
 
     await asyncio.sleep(30)
+    logger.info('preparing files for sending')
     abs_path = os.path.abspath(os.path.dirname(__file__))
     df_result = pd.DataFrame(all_items_list)
     df_result.drop_duplicates(keep='last', inplace=True, subset='article')
@@ -134,15 +140,17 @@ async def get_gather_data():
     df_del.to_excel(del_path, index=False)
 
     await asyncio.sleep(10)
+    logger.info('Start sending files')
     await tg_send_files([without_del_path, del_path], subject='бб')
 
 
 def main():
+    logger.info('Start parsing BookBridge.ru')
     asyncio.run(get_gather_data())
-    time.sleep(60)
 
 
 def super_main():
+    load_dotenv('../.env')
     schedule.every().day.at('20:00').do(main)
 
     while True:

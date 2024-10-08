@@ -1,6 +1,7 @@
 from mg.compare import main as mg_main
 from moscow.just_compare import main as msk_main
 import schedule
+from dotenv import load_dotenv
 
 
 
@@ -10,6 +11,7 @@ def main():
 
 
 def super_main():
+    load_dotenv()
     schedule.every().day.at('03:00').do(main)
 
     while True:
