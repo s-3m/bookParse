@@ -7,7 +7,6 @@ from pandas.io.formats import excel
 from fake_useragent import UserAgent
 from bs4 import BeautifulSoup as bs
 import time
-import schedule
 
 from selenium_data import get_book_data
 from tg_sender import tg_send_files
@@ -80,8 +79,12 @@ async def reparse_error(session, past_day_result, to_del):
 async def get_compare():
     tasks = []
     to_del = []
-    past_day_result = pd.read_excel(f'{os.path.dirname(os.path.realpath(__file__))}/msk_new_stock.xlsx',
-                                    converters={'Артикул': str}).set_index('Артикул').to_dict('index')
+    df_past_day_result = pd.read_excel(f'{os.path.dirname(os.path.realpath(__file__))}/msk_new_stock.xlsx',
+                                    converters={'Артикул': str})
+
+    df_past_day_result.drop_duplicates(subset='Артикул', keep='first', inplace=True)
+    past_day_result = df_past_day_result.set_index('Артикул').to_dict('index')
+
     article_list = list(past_day_result.keys())
     async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False), trust_env=True) as session:
         for article in article_list:
@@ -111,10 +114,7 @@ def main():
 
 
 def super_main():
-    schedule.every().day.at('06:00').do(main)
-
-    while True:
-        schedule.run_pending()
+    main()
 
 
 if __name__ == '__main__':
