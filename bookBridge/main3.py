@@ -4,14 +4,13 @@ import re
 from time import sleep
 
 import pandas.io.formats.excel
+import unicodedata
 from fake_useragent import UserAgent
 from bs4 import BeautifulSoup as bs
 import aiohttp
 import asyncio
 import pandas as pd
-
-from selenium_data import get_selenium_page
-from concurrent.futures import ThreadPoolExecutor
+from loguru import logger
 
 pandas.io.formats.excel.ExcelFormatter.header_style = None
 BASE_URL = "https://bookbridge.ru"
@@ -27,6 +26,7 @@ sample = pd.read_excel("abc.xlsx", converters={"Артикул": str}).set_index
 not_in_sale = pd.read_excel("not_in_sale.xlsx", converters={"Артикул": str}).set_index('Артикул').to_dict('index')
 
 count = 1
+empty_price_count = 1
 result = []
 
 id_to_del = []
@@ -178,6 +178,62 @@ async def get_item_data(item, session, main_category=None):
         pass
 
 
+async def get_price_data(item, session, semaphore_price):
+    global empty_price_count
+    item_article = item['Артикул'][:-2]
+    url = f"{BASE_URL}/catalog/?q={item_article}"
+    async with semaphore_price:
+        async with session.get(url, headers=headers) as resp:
+            await asyncio.sleep(5)
+            soup = bs(await resp.text(), 'html.parser')
+            div_list = soup.find_all('div', class_='inner_wrap TYPE_1')
+
+            for div in div_list:
+                div_article = str(div.find('div', class_='article_block').get('data-value'))
+                div_stock = soup.find('div', class_='item-stock').text
+                if div_article != item_article or div_stock == "Нет в наличии":
+                    continue
+                div_price_value = div.find('span', class_='price_value')
+                if div_price_value:
+                    price_value: str = unicodedata.normalize("NFKD", div_price_value.text)
+                    item['Цена'] = price_value.replace(" ", "")
+
+            print(f"\r{empty_price_count}", end="")
+            empty_price_count += 1
+
+
+async def check_empty_price(session):
+    semaphore_price = asyncio.Semaphore(5)
+
+    empty_price_tasks = []
+    df_empty_price_one = pd.read_excel("result/price_one.xlsx", converters={"Цена": str})
+    df_empty_price_one = df_empty_price_one.where(df_empty_price_one.notnull(), None)
+    price_one = df_empty_price_one.to_dict(orient="records")
+
+    df_empty_price_two = pd.read_excel("result/price_two.xlsx", converters={"Цена": str})
+    df_empty_price_two = df_empty_price_two.where(df_empty_price_two.notnull(), None)
+    price_two = df_empty_price_two.to_dict(orient="records")
+
+    df_empty_price_three = pd.read_excel("result/price_three.xlsx", converters={"Цена": str})
+    df_empty_price_three = df_empty_price_three.where(df_empty_price_three.notnull(), None)
+    price_three = df_empty_price_three.to_dict(orient="records")
+
+    for item_price in (price_one, price_two, price_three):
+        for i in item_price:
+            if not i["Цена"]:
+                task = asyncio.create_task(get_price_data(i, session, semaphore_price))
+                empty_price_tasks.append(task)
+    logger.info(f"Total empty price in PRICE_ONE - {len(empty_price_tasks)}")
+    await asyncio.gather(*empty_price_tasks)
+
+    print()
+    logger.info(f"Start wright files")
+
+    pd.DataFrame(price_one).to_excel("result/price_one.xlsx", index=False)
+    pd.DataFrame(price_two).to_excel("result/price_two.xlsx", index=False)
+    pd.DataFrame(price_three).to_excel("result/price_three.xlsx", index=False)
+
+
 async def get_gather_data():
     all_need_links = []
 
@@ -235,7 +291,7 @@ async def get_gather_data():
 
         to_write_file('result')
 
-        print('\n--------------- Start parse error --------------')
+        logger.warning("Start reparse error")
 
         reparse_tasks = []
         reparse_count = 0
@@ -243,7 +299,7 @@ async def get_gather_data():
             with open('error_log.txt', encoding='utf-8') as file:
                 reparse_items = file.readlines()
                 reparse_items = [i.split(" -")[0].strip() for i in reparse_items if i.strip()]
-            print(f'>>>>>>>> Total error reparse - {len(reparse_items)}')
+            logger.info(f'Total error reparse - {len(reparse_items)}')
             os.remove('error_log.txt')
             for item in reparse_items:
                 task = asyncio.create_task(get_item_data(item, session))
@@ -251,11 +307,17 @@ async def get_gather_data():
             reparse_count += 1
             await asyncio.gather(*reparse_tasks)
 
+        to_write_file(filepath='result', final_result=True)
+
+        logger.info("Start check empty price field")
+        await check_empty_price(session)
+
+        logger.success('All done successfully!!!')
+
+
 
 def main():
     asyncio.run(get_gather_data())
-    to_write_file(filepath='result', final_result=True)
-
 
 if __name__ == "__main__":
     a = time.time()
