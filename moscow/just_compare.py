@@ -80,10 +80,10 @@ async def get_compare():
     tasks = []
     to_del = []
     df_past_day_result = pd.read_excel(f'{os.path.dirname(os.path.realpath(__file__))}/msk_new_stock.xlsx',
-                                    converters={'Артикул': str})
+                                    converters={"article": str})
 
-    df_past_day_result.drop_duplicates(subset='Артикул', keep='first', inplace=True)
-    past_day_result = df_past_day_result.set_index('Артикул').to_dict('index')
+    df_past_day_result.drop_duplicates(subset="article", keep='first', inplace=True)
+    past_day_result = df_past_day_result.set_index("article").to_dict('index')
 
     article_list = list(past_day_result.keys())
     async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False), trust_env=True) as session:
@@ -94,12 +94,12 @@ async def get_compare():
     logger.info('Preparing files for sending')
     abs_path = os.path.dirname(os.path.realpath(__file__))
     df = pd.DataFrame().from_dict(past_day_result, 'index')
-    df.index.name = 'Артикул'
+    df.index.name = "article"
     df.index = df.index.astype(str)
     file_stock = f'{abs_path}/msk_new_stock.xlsx'
     df.to_excel(file_stock)
 
-    del_df = pd.DataFrame({'Артикул': to_del})
+    del_df = pd.DataFrame({"article": to_del})
     file_del = f'{abs_path}/msk_del.xlsx'
     del_df.to_excel(file_del, index=False)
 

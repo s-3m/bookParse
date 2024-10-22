@@ -7,6 +7,7 @@ from fake_useragent import UserAgent
 import aiohttp
 import asyncio
 import pandas as pd
+from loguru import logger
 
 
 pandas.io.formats.excel.ExcelFormatter.header_style = None
@@ -18,11 +19,11 @@ headers = {
     "user-agent": USER_AGENT.random
 }
 
-df_price_one = pd.read_excel("one.xlsx", converters={"Артикул": str}).set_index('Артикул').to_dict('index')
-df_price_two = pd.read_excel("two.xlsx", converters={"Артикул": str}).set_index('Артикул').to_dict('index')
-df_price_three = pd.read_excel("three.xlsx", converters={"Артикул": str}).set_index('Артикул').to_dict('index')
-sample = pd.read_excel("abc.xlsx", converters={"Артикул": str}).set_index('Артикул').to_dict('index')
-not_in_sale = pd.read_excel("not_in_sale.xlsx", converters={"Артикул": str}).set_index('Артикул').to_dict('index')
+df_price_one = pd.read_excel("one.xlsx", converters={"article": str}).set_index("article").to_dict('index')
+df_price_two = pd.read_excel("two.xlsx", converters={"article": str}).set_index("article").to_dict('index')
+df_price_three = pd.read_excel("three.xlsx", converters={"article": str}).set_index("article").to_dict('index')
+sample = pd.read_excel("abc.xlsx", converters={"article": str}).set_index("article").to_dict('index')
+not_in_sale = pd.read_excel("not_in_sale.xlsx", converters={"article": str}).set_index("article").to_dict('index')
 
 result = []
 id_to_add = []
@@ -38,12 +39,12 @@ async def get_item_data(session, link, main_category):
         async with semaphore:
             async with session.get(BASE_URL + link, headers=headers) as response:
                 soup = bs(await response.text(), "lxml")
-                item_data["Категория"] = main_category
+                item_data["category"] = main_category
                 try:
                     title = soup.find("h1").text.strip()
-                    item_data["Названия"] = title
+                    item_data["title"] = title
                 except:
-                    item_data["Названия"] = 'Нет названия'
+                    item_data["title"] = 'Нет названия'
                 try:
                     options = soup.find('div', class_="item_basket_cont").find_all("tr")
                     for option in options:
@@ -64,14 +65,14 @@ async def get_item_data(session, link, main_category):
                         info = info.find_next().text.strip()
                     else:
                         info = 'Описание отсутствует'
-                    item_data["Описание"] = info
+                    item_data["description"] = info
                 except:
-                    item_data["Описание"] = 'Описание отсутствует'
+                    item_data["description"] = 'Описание отсутствует'
                 try:
                     price = soup.find_all("div", class_="product_item_price")[1].text.strip().split('.')[0]
-                    item_data["Цена"] = price
+                    item_data["price"] = price
                 except:
-                    item_data["Цена"] = 'Цена не указана'
+                    item_data["price"] = 'Цена не указана'
 
                 item_id = soup.find('div', class_='wish_list_btn_box').find('a', class_='btn_desirable2 to_wishlist')
                 if item_id:
@@ -79,28 +80,28 @@ async def get_item_data(session, link, main_category):
                     item_data['id'] = item_id
                 try:
                     quantity = soup.find("div", class_="wish_list_poz").text.strip()
-                    item_data["Наличие"] = quantity
+                    item_data["quantity"] = quantity
                 except:
-                    item_data["Наличие"] = 'Наличие не указано'
+                    item_data["quantity"] = 'Наличие не указано'
                 try:
                     photo = soup.find("a", class_="highslide")['href']
-                    item_data["Фото"] = BASE_URL + photo
+                    item_data["photo"] = BASE_URL + photo
                 except:
-                    item_data["Фото"] = 'Нет изображения'
+                    item_data["photo"] = 'Нет изображения'
 
                 if isbn + '.0' in not_in_sale:
-                    not_in_sale[isbn + '.0']['В продаже'] = 'да'
+                    not_in_sale[isbn + '.0']['on sale'] = 'да'
                 if isbn + '.0' not in sample and quantity == 'есть в наличии':
                     id_to_add.append(item_data)
                 if isbn + '.0' in sample and quantity != 'есть в наличии':
-                    id_to_del.append({'Артикул': f'{isbn}.0'})
+                    id_to_del.append({"article": f'{isbn}.0'})
 
                 if isbn + '.0' in df_price_one:
-                    df_price_one[isbn + '.0']['Цена'] = price
+                    df_price_one[isbn + '.0']['price'] = price
                 if isbn + '.0' in df_price_two:
-                    df_price_two[isbn + '.0']['Цена'] = price
+                    df_price_two[isbn + '.0']['price'] = price
                 if isbn + '.0' in df_price_three:
-                    df_price_three[isbn + '.0']['Цена'] = price
+                    df_price_three[isbn + '.0']['price'] = price
                 result.append(item_data)
     except Exception as e:
         with open('error.txt', 'a+', encoding='utf-8') as f:
@@ -123,10 +124,10 @@ async def get_gather_data():
                 soup = bs(response_text, 'lxml')
                 pagin_max = int(soup.find("div", class_="navitem").find_all("a")[-2]['href'].split('=')[-1])
                 main_category = soup.find("h1").text.split(' (')[0]
-                print(f'\n---Делаю категорию - {main_category}---')
+                logger.info(f'\n---Делаю категорию - {main_category}---')
 
                 for page_numb in range(1, pagin_max + 1):
-                    print(f'----------------стр - {page_numb} из {pagin_max}-----------')
+                    logger.info(f'----------------стр - {page_numb} из {pagin_max}-----------')
                     response = await session.get(f'{BASE_URL}{cat_link}?page={page_numb}&orderNew=asc')
                     await asyncio.sleep(5)
                     response_text = await response.text()
@@ -144,7 +145,10 @@ async def get_gather_data():
 
 
 def main():
+    logger.info("Start parsing Gvardia")
     asyncio.run(get_gather_data())
+    logger.info("Finish parsing Gvardia")
+    logger.info("Start to write to excel")
     df = pd.DataFrame(result)
     df.to_excel('result.xlsx', index=False)
 
@@ -155,20 +159,22 @@ def main():
     df_del.to_excel('del.xlsx', index=False)
 
     df_one = pd.DataFrame().from_dict(df_price_one, orient='index')
-    df_one.index.name = 'Артикул'
+    df_one.index.name = "article"
     df_one.to_excel('price_one.xlsx')
 
     df_two = pd.DataFrame().from_dict(df_price_two, orient='index')
-    df_two.index.name = 'Артикул'
+    df_two.index.name = "article"
     df_two.to_excel('price_two.xlsx')
 
     df_three = pd.DataFrame().from_dict(df_price_three, orient='index')
-    df_three.index.name = 'Артикул'
+    df_three.index.name = "article"
     df_three.to_excel('price_three.xlsx')
 
     df_not_in_sale = pd.DataFrame().from_dict(not_in_sale, orient='index')
-    df_not_in_sale.index.name = 'Артикул'
+    df_not_in_sale.index.name = "article"
     df_not_in_sale.to_excel('not_in_sale.xlsx')
+    logger.info("Finish to write to excel")
+    logger.success("Gvardia pars success")
 
 
 if __name__ == "__main__":

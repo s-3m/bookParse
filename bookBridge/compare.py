@@ -17,22 +17,6 @@ pandas.io.formats.excel.ExcelFormatter.header_style = None
 BASE_URL = "https://bookbridge.ru"
 USER_AGENT = UserAgent()
 
-# cookies = {
-#     'ASPRO_MAX_USE_MODIFIER': 'Y',
-#     'BITRIX_SM_GUEST_ID': '1624218',
-#     'BITRIX_SM_SALE_UID': 'e18c295fc8063d2ca6e15168ee6ac63d',
-#     '_ym_debug': 'null',
-#     'BITRIX_CONVERSION_CONTEXT_s1': '%7B%22ID%22%3A2%2C%22EXPIRE%22%3A1727125140%2C%22UNIQUE%22%3A%5B%22conversion_visit_day%22%5D%7D',
-#     '_ym_uid': '1727085555223271303',
-#     '_ym_isad': '2',
-#     'BX_USER_ID': '7fb6960376433edd08736e7dacc8660d',
-#     'PHPSESSID': 'sKj7Sj7tTeow2NuxAqVXp1BzIu3A2nTq',
-#     '_ym_visorc': 'w',
-#     'MAX_VIEWED_ITEMS_s1': '%7B%2218139%22%3A%5B%221727085604307%22%2C%222106313%22%5D%2C%2277316%22%3A%5B%221727089427922%22%2C%222212995%22%5D%2C%22351631%22%3A%5B%221727089643749%22%2C%222215984%22%5D%7D',
-#     '_ym_d': '1727089644',
-#     'BITRIX_SM_LAST_VISIT': '23.09.2024%2014%3A07%3A24',
-# }
-
 headers = {
     'Accept': '*/*',
     'Accept-Language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
@@ -52,10 +36,6 @@ headers = {
     'sec-ch-ua-mobile': '?0',
     'sec-ch-ua-platform': '"Windows"',
 }
-
-# params = {
-#     'bxrand': '1727090296015',
-# }
 
 count = 1
 
