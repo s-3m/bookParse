@@ -203,7 +203,7 @@ async def get_item_data(item, session, main_category=None):
                 filepath="result/temporary/temporary_result.xlsx", temporary=True
             )
 
-        print(f"\r{count}", end="")
+        print(f"\rDone - {count}", end="")
         count = count + 1
         result.append(res_dict)
 
@@ -238,7 +238,7 @@ async def get_price_data(item, session, semaphore_price):
                     )
                     item["price"] = price_value.replace(" ", "")
 
-            print(f"\r{empty_price_count}", end="")
+            print(f"\rEmpty parse done - {empty_price_count}", end="")
             empty_price_count += 1
 
 
@@ -286,8 +286,8 @@ async def get_gather_data():
     all_need_links = []
     logger.info("Start to collect data")
     async with aiohttp.ClientSession(
-        connector=aiohttp.TCPConnector(ssl=False, limit=50, limit_per_host=10),
-        trust_env=True,
+            connector=aiohttp.TCPConnector(ssl=False, limit=50, limit_per_host=10),
+            trust_env=True,
     ) as session:
         response = await session.get(f"{BASE_URL}/catalog", headers=headers)
         response_text = await response.text()
@@ -316,13 +316,13 @@ async def get_gather_data():
                 pagination = int(pagination.find_all("a")[-1].text.strip())
             else:
                 pagination = 1
-            pagination = 3
+            # pagination = 3
             for page in range(1, pagination + 1):
                 await asyncio.sleep(5)
 
                 try:
                     async with session.get(
-                        f"{BASE_URL}{link}?PAGEN_1={page}", headers=headers
+                            f"{BASE_URL}{link}?PAGEN_1={page}", headers=headers
                     ) as response:
                         await asyncio.sleep(10)
                         soup = bs(await response.text(), "html.parser")
@@ -341,11 +341,11 @@ async def get_gather_data():
 
         await asyncio.gather(*tasks)
         await asyncio.sleep(10)
+        print()  # empty print for break string after count
         logger.success("Main data was collected")
         to_write_file("result")
         logger.success("The main data was written to files")
 
-        print()  # empty print for break string after count
         logger.warning("Start reparse error")
 
         reparse_tasks = []
