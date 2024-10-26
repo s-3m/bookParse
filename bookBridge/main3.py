@@ -271,7 +271,7 @@ async def check_empty_price(session):
             if not i["price"]:
                 task = asyncio.create_task(get_price_data(i, session, semaphore_price))
                 empty_price_tasks.append(task)
-    logger.info(f"Total empty price in PRICE_ONE - {len(empty_price_tasks)}")
+    logger.info(f"Total empty prices - {len(empty_price_tasks)}")
     await asyncio.gather(*empty_price_tasks)
 
     print()
