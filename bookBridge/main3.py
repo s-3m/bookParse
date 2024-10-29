@@ -203,7 +203,7 @@ async def get_item_data(item, session, main_category=None):
                 filepath="result/temporary/temporary_result.xlsx", temporary=True
             )
 
-        print(f"\r{count}", end="")
+        print(f"\rDone - {count}", end="")
         count = count + 1
         result.append(res_dict)
 
@@ -316,7 +316,7 @@ async def get_gather_data():
                 pagination = int(pagination.find_all("a")[-1].text.strip())
             else:
                 pagination = 1
-            pagination = 3
+            # pagination = 3
             for page in range(1, pagination + 1):
                 await asyncio.sleep(5)
 
@@ -341,11 +341,11 @@ async def get_gather_data():
 
         await asyncio.gather(*tasks)
         await asyncio.sleep(10)
+        print()  # empty print for break string after count
         logger.success("Main data was collected")
         to_write_file("result")
         logger.success("The main data was written to files")
 
-        print()  # empty print for break string after count
         logger.warning("Start reparse error")
 
         reparse_tasks = []
