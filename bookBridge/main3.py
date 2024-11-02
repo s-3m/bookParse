@@ -238,7 +238,7 @@ async def get_price_data(item, session, semaphore_price):
                     )
                     item["price"] = price_value.replace(" ", "")
 
-            print(f"\r{empty_price_count}", end="")
+            print(f"\rEmpty parse done - {empty_price_count}", end="")
             empty_price_count += 1
 
 
@@ -271,7 +271,7 @@ async def check_empty_price(session):
             if not i["price"]:
                 task = asyncio.create_task(get_price_data(i, session, semaphore_price))
                 empty_price_tasks.append(task)
-    logger.info(f"Total empty price in PRICE_ONE - {len(empty_price_tasks)}")
+    logger.info(f"Total empty prices - {len(empty_price_tasks)}")
     await asyncio.gather(*empty_price_tasks)
 
     print()
@@ -286,8 +286,8 @@ async def get_gather_data():
     all_need_links = []
     logger.info("Start to collect data")
     async with aiohttp.ClientSession(
-        connector=aiohttp.TCPConnector(ssl=False, limit=50, limit_per_host=10),
-        trust_env=True,
+            connector=aiohttp.TCPConnector(ssl=False, limit=50, limit_per_host=10),
+            trust_env=True,
     ) as session:
         response = await session.get(f"{BASE_URL}/catalog", headers=headers)
         response_text = await response.text()
@@ -322,7 +322,7 @@ async def get_gather_data():
 
                 try:
                     async with session.get(
-                        f"{BASE_URL}{link}?PAGEN_1={page}", headers=headers
+                            f"{BASE_URL}{link}?PAGEN_1={page}", headers=headers
                     ) as response:
                         await asyncio.sleep(10)
                         soup = bs(await response.text(), "html.parser")
